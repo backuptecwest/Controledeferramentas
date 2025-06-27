@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Ferramentas v4.1</title>
+    <title>Controle de Ferramentas v4.2</title>
     <link rel="stylesheet" href="style.css">
 
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
@@ -13,9 +13,10 @@
 
     <div class="container">
         
-        <h1>Controle de Ferramentas v4.1</h1>
+        <h1>Controle de Ferramentas v4.2</h1>
 
         <div id="login-container" class="card" style="max-width: 300px; margin: 20px auto;">
+            <p id="login-message">A carregar...</p>
             <div class="button-group">
                 <button id="authorize_button" style="display: none;">Login com Google</button>
             </div>
@@ -44,6 +45,7 @@
                     <div class="card">
                         <h2><span class="emoji">⚙️</span> Painel de Controle</h2>
                         <div class="control-panel">
+                            <button id="refresh-data-btn" class="refresh-button">Atualizar Dados</button>
                             <button id="open-status-btn">Status Geral</button>
                             <button id="open-history-btn">Ver Histórico</button>
                             <button id="open-tools-btn">Gerir Ferramentas</button>
@@ -51,7 +53,7 @@
                         </div>
                     </div>
                     <div id="logout-container" class="card">
-                        <p id="user-profile" style="text-align: center; font-weight: bold; margin-bottom: 15px;"></p>
+                        <p id="user-profile"></p>
                         <div class="button-group">
                             <button id="signout_button">Logout</button>
                         </div>
