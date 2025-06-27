@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Ferramentas v4.1</title>
+    <link rel="stylesheet" href="style.css">
+
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</head>
+<body>
+
+    <div class="container">
+        
+        <h1>Controle de Ferramentas v4.1</h1>
+
+        <div id="login-container" class="card" style="max-width: 300px; margin: 20px auto;">
+            <div class="button-group">
+                <button id="authorize_button" style="display: none;">Login com Google</button>
+            </div>
+        </div>
+        
+        <div id="main-app-content" style="display: none;">
+            <div class="main-layout">
+                
+                <div class="main-operations">
+                    <div class="card">
+                        <h2><span class="emoji">➡️</span> Registrar Saída</h2>
+                        <div class="form-group"><label for="tool-select">Ferramenta:</label><select id="tool-select"></select></div>
+                        <div class="form-group"><label for="tech-select">Técnico:</label><select id="tech-select"></select></div>
+                        <div class="form-group"><label for="assignment-context">Cliente / Nº OS:</label><input type="text" id="assignment-context"></div>
+                        <div class="button-group"><button onclick="assignTool()">Registrar Saída</button></div>
+                    </div>
+                    <div class="card">
+                        <h2><span class="emoji">⬅️</span> Registrar Devolução</h2>
+                        <div class="form-group"><label for="return-tool-select">Ferramenta em uso:</label><select id="return-tool-select"></select></div>
+                        <div id="return-info-display" class="info-display"></div>
+                        <div class="button-group"><button onclick="returnTool()">Registrar Devolução</button></div>
+                    </div>
+                </div>
+
+                <div class="sidebar-controls">
+                    <div class="card">
+                        <h2><span class="emoji">⚙️</span> Painel de Controle</h2>
+                        <div class="control-panel">
+                            <button id="open-status-btn">Status Geral</button>
+                            <button id="open-history-btn">Ver Histórico</button>
+                            <button id="open-tools-btn">Gerir Ferramentas</button>
+                            <button id="open-techs-btn">Gerir Técnicos</button>
+                        </div>
+                    </div>
+                    <div id="logout-container" class="card">
+                        <p id="user-profile" style="text-align: center; font-weight: bold; margin-bottom: 15px;"></p>
+                        <div class="button-group">
+                            <button id="signout_button">Logout</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="tools-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">🔧</span> Gerenciar Ferramentas</h2><div class="form-group"><input type="text" id="tool-name" placeholder="Nome da nova ferramenta"><button onclick="addTool()">Adicionar Ferramenta</button></div><ul id="tool-management-list" class="management-list"></ul></div></div>
+    <div id="techs-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">👷</span> Gerenciar Técnicos</h2><div class="form-group"><input type="text" id="tech-name" placeholder="Nome do novo técnico"><button onclick="addTech()">Adicionar Técnico</button></div><ul id="tech-management-list" class="management-list"></ul></div></div>
+    <div id="history-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">📖</span> Histórico de Movimentações</h2><ul id="history-log" class="history-list"></ul></div></div>
+    <div id="status-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">📊</span> Status Geral das Ferramentas</h2><ul id="full-status-list" class="management-list"></ul></div></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
