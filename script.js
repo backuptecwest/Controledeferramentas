@@ -1,61 +1,27 @@
-// ######################################################
 // #####   COLE AS SUAS CHAVES DO GOOGLE AQUI   #####
-// ######################################################
 const API_KEY = 'AIzaSyAhcSrORXnOf0RofFJs_rSNci4SToUVZMs';
 const CLIENT_ID = '343451091287-838i0t2coadac66h86otn2vlodfsaheo.apps.googleusercontent.com';
 // ######################################################
 
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-const APP_DATA_FILE_NAME = 'controle_ferramentas_data.json';
+const APP_DATA_FILE_NAME = 'controle_ferramentas_data.json'; // O nome do nosso ficheiro de BD
 let tokenClient;
 let gapiInited = false;
 let gisInited = false;
 let driveFileId = null;
 let tools = [], techs = [], assignments = [], history = [];
 
-// --- Funções de Inicialização e Autenticação ---
+// --- Funções de Inicialização e Autenticação (sem alterações) ---
 function gapiLoaded() { gapi.load('client', initializeGapiClient); }
-function gisLoaded() {
-    tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: handleAuthResponse });
-    gisInited = true;
-    maybeEnableButtons();
-}
-async function initializeGapiClient() {
-    await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] });
-    gapiInited = true;
-    maybeEnableButtons();
-}
-function maybeEnableButtons() {
-    if (gapiInited && gisInited) {
-        document.getElementById('authorize_button').style.display = 'block';
-    }
-}
-function handleAuthClick() {
-    if (gapi.client.getToken() === null) {
-        tokenClient.requestAccessToken({ prompt: 'consent' });
-    } else {
-        tokenClient.requestAccessToken({ prompt: '' });
-    }
-}
-function handleSignoutClick() {
-    const token = gapi.client.getToken();
-    if (token !== null) {
-        google.accounts.oauth2.revoke(token.access_token);
-        gapi.client.setToken('');
-        document.getElementById('main-app-content').style.display = 'none';
-        document.getElementById('login-container').style.display = 'block';
-        driveFileId = null; 
-    }
-}
-async function handleAuthResponse(resp) {
-    if (resp.error !== undefined) { throw (resp); }
-    document.getElementById('login-container').style.display = 'none';
-    document.getElementById('main-app-content').style.display = 'block';
-    await onLogin();
-}
+function gisLoaded() { tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: handleAuthResponse }); gisInited = true; maybeEnableButtons(); }
+async function initializeGapiClient() { await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] }); gapiInited = true; maybeEnableButtons(); }
+function maybeEnableButtons() { if (gapiInited && gisInited) { document.getElementById('authorize_button').style.display = 'block'; } }
+function handleAuthClick() { if (gapi.client.getToken() === null) { tokenClient.requestAccessToken({ prompt: 'consent' }); } else { tokenClient.requestAccessToken({ prompt: '' }); } }
+function handleSignoutClick() { const token = gapi.client.getToken(); if (token !== null) { google.accounts.oauth2.revoke(token.access_token); gapi.client.setToken(''); document.getElementById('main-app-content').style.display = 'none'; document.getElementById('login-container').style.display = 'block'; driveFileId = null; } }
+async function handleAuthResponse(resp) { if (resp.error !== undefined) { throw (resp); } document.getElementById('login-container').style.display = 'none'; document.getElementById('main-app-content').style.display = 'block'; await onLogin(); }
 
-// --- Lógica Principal ---
+// --- Lógica Principal (sem alterações) ---
 async function onLogin() {
     await findOrCreateDataFile();
     await loadDataFromDrive();
@@ -66,12 +32,72 @@ async function onLogin() {
     } catch(e) { console.error(e); }
 }
 
-// --- Funções de Dados com Google Drive ---
-async function findOrCreateDataFile() { try { const response = await gapi.client.drive.files.list({ q: `name='${APP_DATA_FILE_NAME}' and 'appDataFolder' in parents`, spaces: 'appDataFolder', fields: 'files(id, name)' }); if (response.result.files.length > 0) { driveFileId = response.result.files[0].id; } else { const createResponse = await gapi.client.drive.files.create({ resource: { name: APP_DATA_FILE_NAME, parents: ['appDataFolder'] }, fields: 'id' }); driveFileId = createResponse.result.id; await saveDataToDrive(); } } catch(e) { console.error("Erro ao procurar ou criar ficheiro:", e); } }
-async function loadDataFromDrive() { if (!driveFileId) return; try { const response = await gapi.client.drive.files.get({ fileId: driveFileId, alt: 'media' }); if (response.body) { const data = JSON.parse(response.body); tools = data.tools || []; techs = data.techs || []; assignments = data.assignments || []; history = data.history || []; } } catch (e) { console.error("Erro ao carregar dados:", e); if(e.result && e.result.error && e.result.error.message.includes("File not found")){ driveFileId = null; await findOrCreateDataFile(); } } }
-async function saveDataToDrive() { if (!driveFileId) return; const dataToSave = { tools, techs, assignments, history }; const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' }); const formData = new FormData(); formData.append('metadata', new Blob([JSON.stringify({ mimeType: 'application/json' })], { type: 'application/json' })); formData.append('file', blob); try { await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`, { method: 'PATCH', headers: new Headers({ 'Authorization': `Bearer ${gapi.client.getToken().access_token}` }), body: formData }); } catch(e) { console.error("Erro ao salvar dados:", e); } }
+// #############################################################
+// #####   MUDANÇAS IMPORTANTES NAS FUNÇÕES DE DADOS   #####
+// #############################################################
 
-// --- Funções da Aplicação ---
+async function findOrCreateDataFile() {
+    try {
+        // Procura pelo ficheiro na pasta raiz do Drive do utilizador
+        const response = await gapi.client.drive.files.list({
+            q: `name='${APP_DATA_FILE_NAME}' and 'root' in parents and trashed=false`,
+            fields: 'files(id, name)'
+        });
+        
+        if (response.result.files && response.result.files.length > 0) {
+            // Se encontrou, guarda o ID
+            driveFileId = response.result.files[0].id;
+        } else {
+            // Se não encontrou, cria um novo ficheiro na pasta raiz
+            const createResponse = await gapi.client.drive.files.create({
+                resource: {
+                    name: APP_DATA_FILE_NAME,
+                    mimeType: 'application/json'
+                },
+                fields: 'id'
+            });
+            driveFileId = createResponse.result.id;
+            // Salva os dados iniciais (vazios) no ficheiro recém-criado
+            await saveDataToDrive();
+        }
+    } catch(e) { console.error("Erro ao procurar ou criar ficheiro de dados:", e); }
+}
+
+async function loadDataFromDrive() {
+    if (!driveFileId) return;
+    try {
+        const response = await gapi.client.drive.files.get({
+            fileId: driveFileId,
+            alt: 'media'
+        });
+        if (response.body && response.body.length > 0) {
+            const data = JSON.parse(response.body);
+            tools = data.tools || [];
+            techs = data.techs || [];
+            assignments = data.assignments || [];
+            history = data.history || [];
+        }
+    } catch (e) { console.error("Erro ao carregar dados do Drive:", e); }
+}
+
+async function saveDataToDrive() {
+    if (!driveFileId) return;
+    const dataToSave = { tools, techs, assignments, history };
+    const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
+    const formData = new FormData();
+    formData.append('metadata', new Blob([JSON.stringify({ mimeType: 'application/json' })], { type: 'application/json' }));
+    formData.append('file', blob);
+
+    try {
+        await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`, {
+            method: 'PATCH',
+            headers: new Headers({ 'Authorization': `Bearer ${gapi.client.getToken().access_token}` }),
+            body: formData
+        });
+    } catch(e) { console.error("Erro ao salvar dados no Drive:", e); }
+}
+
+// --- Funções da Aplicação (sem alterações, mas agora usarão o novo saveDataToDrive) ---
 async function updateAndSave(modalToUpdate = null) { await saveDataToDrive(); if (modalToUpdate) { openModal(modalToUpdate); } updateOperationSelects(); }
 function addTool() { const toolNameInput = document.getElementById('tool-name'); const toolName = toolNameInput.value.trim(); if (toolName) { tools.push({ id: Date.now(), name: toolName, status: 'ativo' }); toolNameInput.value = ''; updateAndSave('tools-modal'); } else { alert('Por favor, digite o nome da ferramenta.'); } }
 function addTech() { const techNameInput = document.getElementById('tech-name'); const techName = techNameInput.value.trim(); if (techName) { techs.push({ id: Date.now(), name: techName, status: 'ativo' }); techNameInput.value = ''; updateAndSave('techs-modal'); } else { alert('Por favor, digite o nome do técnico.'); } }
@@ -89,29 +115,5 @@ function updateOperationSelects() { const toolSelect = document.getElementById('
 function updateHistoryLog() { const historyLog = document.getElementById('history-log'); historyLog.innerHTML = ''; if (history.length === 0) { historyLog.innerHTML = '<li>Nenhuma devolução registrada.</li>'; return; } history.forEach(entry => { const li = document.createElement('li'); const contextText = entry.context ? `(Cliente/OS: ${entry.context})` : ''; li.innerHTML = `<strong>${entry.toolName}</strong> com <strong>${entry.techName}</strong> ${contextText}<br><small>Saída: ${entry.checkoutDate} | Devolução: ${entry.returnDate}</small>`; historyLog.appendChild(li); }); }
 function updateFullStatusList() { const fullStatusList = document.getElementById('full-status-list'); fullStatusList.innerHTML = ''; if (tools.length === 0) { fullStatusList.innerHTML = '<li>Nenhuma ferramenta cadastrada.</li>'; return; } tools.forEach(tool => { const li = document.createElement('li'); const assignment = assignments.find(a => a.toolId == tool.id); if (assignment) { const tech = techs.find(t => t.id == assignment.techId); const techName = tech ? tech.name : '?'; const contextText = assignment.context ? `(Cliente/OS: ${assignment.context})` : ''; li.innerHTML = `<span>${tool.name}</span> <span class="status status-in-use">EM USO</span> com <strong>${techName}</strong> ${contextText}`; } else { li.innerHTML = `<span>${tool.name}</span> <span class="status ${tool.status === 'ativo' ? 'status-available' : 'status-inactive'}">${tool.status === 'ativo' ? 'DISPONÍVEL' : 'INATIVA'}</span>`; } fullStatusList.appendChild(li); }); }
 
-// #############################################################
-// #####   BLOCO DE INICIALIZAÇÃO FINAL - MUITO IMPORTANTE   #####
-// #############################################################
-window.onload = function() {
-    // Botões de Autenticação
-    document.getElementById('authorize_button').onclick = handleAuthClick;
-    document.getElementById('signout_button').onclick = handleSignoutClick;
-    
-    // Botões do Painel de Controle
-    document.getElementById('open-tools-btn').onclick = function() { openModal('tools-modal'); };
-    document.getElementById('open-techs-btn').onclick = function() { openModal('techs-modal'); };
-    document.getElementById('open-history-btn').onclick = function() { openModal('history-modal'); };
-    document.getElementById('open-status-btn').onclick = function() { openModal('status-modal'); };
-    
-    // Evento do menu de devolução
-    document.getElementById('return-tool-select').onchange = showReturnInfo;
-
-    // Eventos para fechar as modais
-    const closeButtons = document.querySelectorAll('.close-btn');
-    closeButtons.forEach(btn => { btn.onclick = function() { closeModal(btn.closest('.modal')); }; });
-    window.onclick = function(event) { if (event.target.classList.contains('modal')) { closeModal(event.target); } };
-    
-    // Eventos da tecla Enter para cadastro
-    document.getElementById('tool-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTool(); } });
-    document.getElementById('tech-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTech(); } });
-};
+// --- INICIALIZAÇÃO FINAL ---
+window.onload = function() { document.getElementById('authorize_button').onclick = handleAuthClick; document.getElementById('signout_button').onclick = handleSignoutClick; document.getElementById('open-tools-btn').onclick = function() { openModal('tools-modal'); }; document.getElementById('open-techs-btn').onclick = function() { openModal('techs-modal'); }; document.getElementById('open-history-btn').onclick = function() { openModal('history-modal'); }; document.getElementById('open-status-btn').onclick = function() { openModal('status-modal'); }; document.getElementById('return-tool-select').onchange = showReturnInfo; const closeButtons = document.querySelectorAll('.close-btn'); closeButtons.forEach(btn => { btn.onclick = function() { closeModal(btn.closest('.modal')); }; }); window.onclick = function(event) { if (event.target.classList.contains('modal')) { closeModal(event.target); } }; document.getElementById('tool-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTool(); } }); document.getElementById('tech-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTech(); } }); };
