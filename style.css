@@ -25,9 +25,7 @@ button:hover { background-color: #0056b3; transform: translateY(-2px); box-shado
 .button-group button, .control-panel button { width: 100%; box-sizing: border-box; }
 .small-button { padding: 6px 12px; font-size: 12px; background-color: #6c757d; width: auto !important; }
 .small-button:hover { background-color: #5a6268; }
-
-/* NOVO: Estilo para o botão de Atualizar */
-.refresh-button { background-color: #28a745; /* Verde */ }
+.refresh-button { background-color: #28a745; }
 .refresh-button:hover { background-color: #218838; }
 
 /* Outros Estilos */
