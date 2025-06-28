@@ -11,7 +11,7 @@ let gapiInited = false;
 let gisInited = false;
 let driveFileId = null;
 let tools = [], techs = [], assignments = [], history = [];
-let pollingIntervalId = null; 
+let pollingIntervalId = null;
 
 // --- Funções de Inicialização e Autenticação ---
 function gapiLoaded() { gapi.load('client', initializeGapiClient); }
@@ -28,7 +28,7 @@ async function initializeGapiClient() {
 
 function checkTokenAndLogin() {
     if (gapiInited && gisInited) {
-        let storedToken = sessionStorage.getItem('google_auth_token');
+        let storedToken = localStorage.getItem('google_auth_token');
         if (storedToken) {
             gapi.client.setToken(JSON.parse(storedToken));
             validateToken();
@@ -45,7 +45,7 @@ async function validateToken() {
             handleAuthResponse({ access_token: gapi.client.getToken().access_token });
         }
     } catch (e) {
-        sessionStorage.removeItem('google_auth_token'); // Limpa token inválido
+        localStorage.removeItem('google_auth_token');
         showLoginButton();
     }
 }
@@ -60,11 +60,8 @@ function handleAuthClick() {
 }
 
 async function handleAuthResponse(resp) {
-    if (resp.error) {
-        showLoginButton();
-        return;
-    }
-    sessionStorage.setItem('google_auth_token', JSON.stringify(gapi.client.getToken()));
+    if (resp.error) { showLoginButton(); return; }
+    localStorage.setItem('google_auth_token', JSON.stringify(gapi.client.getToken()));
     document.getElementById('login-container').style.display = 'none';
     document.getElementById('main-app-content').style.display = 'block';
     await onLogin();
@@ -72,7 +69,7 @@ async function handleAuthResponse(resp) {
 
 function handleSignoutClick() {
     if (pollingIntervalId) clearInterval(pollingIntervalId);
-    sessionStorage.removeItem('google_auth_token');
+    localStorage.removeItem('google_auth_token');
     const token = gapi.client.getToken();
     if (token !== null) { google.accounts.oauth2.revoke(token.access_token); gapi.client.setToken(''); }
     document.getElementById('main-app-content').style.display = 'none';
@@ -97,11 +94,22 @@ async function refreshData() {
     console.log("Sincronizando dados...");
     await loadDataFromDrive();
     updateOperationSelects();
-    const openReportModal = document.querySelector('#status-report-modal[style*="display: block"]');
-    if (openReportModal) {
-        const title = document.getElementById('status-report-title').textContent;
-        if (title.includes("Disponíveis")) { showAvailableToolsList(false); }
-        else if (title.includes("em Uso")) { showInUseToolsList(false); }
+    const openModal = document.querySelector('.modal[style*="display: block"]');
+    if (openModal) {
+        switch(openModal.id) {
+            case 'tools-modal':
+            case 'techs-modal':
+                updateManagementLists();
+                break;
+            case 'history-modal':
+                updateHistoryLog();
+                break;
+            case 'status-report-modal':
+                const title = document.getElementById('status-report-title').textContent;
+                if (title.includes("Disponíveis")) { showAvailableToolsList(false); }
+                else if (title.includes("em Uso")) { showInUseToolsList(false); }
+                break;
+        }
     }
     console.log("Dados sincronizados.");
 }
@@ -122,12 +130,11 @@ function editTech(techId) { const tech = techs.find(t => t.id === techId); const
 function toggleToolStatus(toolId) { const tool = tools.find(t => t.id === toolId); if(assignments.some(a => a.toolId == toolId)){ alert('Não é possível inativar ferramenta em uso.'); return; } tool.status = tool.status === 'ativo' ? 'inativo' : 'ativo'; updateAndSave('tools-modal'); }
 function toggleTechStatus(techId) { const tech = techs.find(t => t.id === techId); tech.status = tech.status === 'ativo' ? 'inativo' : 'ativo'; updateAndSave('techs-modal'); }
 function showReturnInfo() { const display = document.getElementById('return-info-display'); const selectedToolId = this.value; if (!selectedToolId) { display.innerHTML = ''; display.style.display = 'none'; return; } const assignment = assignments.find(a => a.toolId == selectedToolId); const tech = techs.find(t => t.id == assignment.techId); const techName = tech ? tech.name : '?'; const contextText = assignment.context || 'N/A'; display.innerHTML = `<strong>Técnico:</strong> ${techName} <br> <strong>Cliente/OS:</strong> ${contextText}`; display.style.display = 'block'; }
-function openModal(modalId) { const modal = document.getElementById(modalId); if(modal) { modal.style.display = 'block'; } }
+function openModal(modalId) { const modal = document.getElementById(modalId); if(modal) { switch(modalId) { case 'tools-modal': case 'techs-modal': updateManagementLists(); break; case 'history-modal': updateHistoryLog(); break; } modal.style.display = 'block'; } }
 function closeModal(modalElement) { modalElement.style.display = 'none'; }
 function updateManagementLists() { const toolList = document.getElementById('tool-management-list'); toolList.innerHTML = ''; tools.forEach(tool => { const li = document.createElement('li'); li.className = `item-${tool.status}`; li.innerHTML = `<span>${tool.name}</span> <div class="button-group"><button class="small-button" onclick="editTool(${tool.id})">Editar</button><button class="small-button" onclick="toggleToolStatus(${tool.id})">${tool.status === 'ativo' ? 'Inativar' : 'Reativar'}</button></div>`; toolList.appendChild(li); }); const techList = document.getElementById('tech-management-list'); techList.innerHTML = ''; techs.forEach(tech => { const li = document.createElement('li'); li.className = `item-${tech.status}`; li.innerHTML = `<span>${tech.name}</span> <div class="button-group"><button class="small-button" onclick="editTech(${tech.id})">Editar</button><button class="small-button" onclick="toggleTechStatus(${tech.id})">${tech.status === 'ativo' ? 'Inativar' : 'Reativar'}</button></div>`; techList.appendChild(li); }); }
 function updateOperationSelects() { const toolSelect = document.getElementById('tool-select'); const toolsInUseIds = assignments.map(a => a.toolId); const availableTools = tools.filter(t => t.status === 'ativo' && !toolsInUseIds.includes(t.id)); toolSelect.innerHTML = '<option value="">Selecione...</option>'; availableTools.forEach(tool => { toolSelect.innerHTML += `<option value="${tool.id}">${tool.name}</option>`; }); const returnToolSelect = document.getElementById('return-tool-select'); const currentReturnSelection = returnToolSelect.value; returnToolSelect.innerHTML = '<option value="">Selecione...</option>'; assignments.forEach(a => { const tool = tools.find(t => t.id == a.toolId); if (tool) returnToolSelect.innerHTML += `<option value="${tool.id}">${tool.name}</option>`; }); returnToolSelect.value = currentReturnSelection; if(!returnToolSelect.value) { document.getElementById('return-info-display').style.display = 'none'; } const techSelect = document.getElementById('tech-select'); const activeTechs = techs.filter(t => t.status === 'ativo'); techSelect.innerHTML = '<option value="">Selecione...</option>'; activeTechs.forEach(tech => { techSelect.innerHTML += `<option value="${tech.id}">${tech.name}</option>`; }); }
 function updateHistoryLog() { const historyLog = document.getElementById('history-log'); historyLog.innerHTML = ''; if (history.length === 0) { historyLog.innerHTML = '<li>Nenhuma devolução registrada.</li>'; return; } history.forEach(entry => { const li = document.createElement('li'); const contextText = entry.context ? `(Cliente/OS: ${entry.context})` : ''; li.innerHTML = `<strong>${entry.toolName}</strong> com <strong>${entry.techName}</strong> ${contextText}<br><small>Saída: ${entry.checkoutDate} | Devolução: ${entry.returnDate}</small>`; historyLog.appendChild(li); }); }
-// Funções dos novos relatórios de status
 function showAvailableToolsList(shouldOpenModal = true) { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">✅</span> Ferramentas Disponíveis'; list.innerHTML = ''; const availableTools = tools.filter(tool => tool.status === 'ativo' && !assignments.some(a => a.toolId == tool.id)); if (availableTools.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta disponível.</li>'; } else { availableTools.forEach(tool => { const li = document.createElement('li'); li.innerHTML = `<span>${tool.name}</span> <span class="status status-available">DISPONÍVEL</span>`; list.appendChild(li); }); } if(shouldOpenModal) openModal('status-report-modal'); }
 function showInUseToolsList(shouldOpenModal = true) { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">➡️</span> Ferramentas em Uso'; list.innerHTML = ''; const activeAssignments = assignments.filter(a => tools.some(t => t.id == a.toolId && t.status === 'ativo')); if (activeAssignments.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta em uso.</li>'; } else { activeAssignments.forEach(a => { const tool = tools.find(t => t.id == a.toolId); const tech = techs.find(t => t.id == a.techId); if(tool){const li = document.createElement('li'); const techName = tech ? tech.name : '?'; const contextText = a.context ? `(Cliente/OS: ${a.context})` : ''; li.innerHTML = `<span>${tool.name}</span> com <strong>${techName}</strong> ${contextText}`; list.appendChild(li);} }); } if(shouldOpenModal) openModal('status-report-modal'); }
 
