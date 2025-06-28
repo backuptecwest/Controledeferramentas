@@ -6,8 +6,6 @@ const CLIENT_ID = '343451091287-0554ofs77qinlt2tg1kppijjip16chc0.apps.googleuser
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 const SCOPES = 'https://www.googleapis.com/auth/drive';
 const APP_DATA_FILE_NAME = 'controle_ferramentas_data.json';
-
-let tokenClient;
 let gapiInited = false;
 let gisInited = false;
 let driveFileId = null;
@@ -18,72 +16,104 @@ let pollingIntervalId = null;
 // #####   NOVA LÓGICA DE INICIALIZAÇÃO E LOGIN (v4.8)   #####
 // #############################################################
 
-// Estas funções são chamadas quando os scripts do Google terminam de carregar
 function gapiLoaded() { gapi.load('client', initializeGapiClient); }
-function gisLoaded() {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: handleAuthResponse, // Callback único para todas as respostas
-    });
-    gisInited = true;
-    trySilentLogin();
-}
+function gisLoaded() { gisInited = true; maybeInit(); }
 
-// Inicializa o cliente da API do Google
 async function initializeGapiClient() {
     try {
         await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] });
         gapiInited = true;
-        trySilentLogin();
+        maybeInit();
     } catch (e) {
-        document.getElementById('login-message').innerText = "Erro ao carregar APIs. Tente recarregar a página.";
+        handleAuthError("Erro ao carregar APIs. Tente recarregar a página.");
         console.error("Erro ao inicializar GAPI client:", e);
     }
 }
 
-// Tenta fazer o login silencioso assim que ambos os scripts estiverem prontos
-function trySilentLogin() {
+function maybeInit() {
+    // Esta função só executa quando AMBOS os scripts do Google estiverem prontos.
     if (gapiInited && gisInited) {
-        // Pede um token sem mostrar pop-up.
-        // Só funciona se o utilizador já tiver uma sessão válida.
-        tokenClient.requestAccessToken({ prompt: 'none' });
+        // Verifica se temos um token guardado no armazenamento local
+        const storedToken = JSON.parse(localStorage.getItem('google_auth_token'));
+        if (storedToken && storedToken.access_token) {
+            // Se temos um token, tentamos usá-lo
+            gapi.client.setToken(storedToken);
+            validateCurrentToken();
+        } else {
+            // Se não há token, mostramos o botão de login
+            showLoginScreen();
+        }
     }
 }
 
-// Função central que lida com a resposta de autenticação
-async function handleAuthResponse(resp) {
-    if (resp.error) {
-        // Se houve um erro (ex: login silencioso falhou), mostra o botão para login manual.
-        document.getElementById('login-message').style.display = 'none';
-        document.getElementById('authorize_button').style.display = 'block';
-        return;
+async function validateCurrentToken() {
+    try {
+        // Faz uma chamada leve à API para ver se o token ainda é válido
+        const response = await gapi.client.drive.about.get({ fields: 'user' });
+        if (response.result.user) {
+            // Token é válido, carrega a aplicação
+            showAppScreen();
+            await onLogin();
+        } else {
+            // A chamada funcionou mas não retornou um utilizador, algo está errado
+            handleAuthError("Sessão inválida.");
+        }
+    } catch (e) {
+        // O token provavelmente expirou ou é inválido
+        handleAuthError("Sua sessão expirou. Por favor, faça login novamente.");
     }
-    // Sucesso! Esconde a área de login e mostra a aplicação.
-    document.getElementById('login-container').style.display = 'none';
-    document.getElementById('main-app-content').style.display = 'block';
-    await onLogin();
 }
 
-// Chamado quando o utilizador clica manualmente no botão de login
 function handleAuthClick() {
-    // Força o pop-up de consentimento/login
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: async (tokenResponse) => {
+            if (tokenResponse.error) {
+                console.error("Erro no login:", tokenResponse.error);
+                return;
+            }
+            // Guarda o novo token e carrega a aplicação
+            localStorage.setItem('google_auth_token', JSON.stringify(tokenResponse));
+            gapi.client.setToken(tokenResponse);
+            showAppScreen();
+            await onLogin();
+        },
+    });
     tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
-// Lida com o logout
 function handleSignoutClick() {
     if (pollingIntervalId) clearInterval(pollingIntervalId);
-    const token = gapi.client.getToken();
-    if (token !== null) {
-        google.accounts.oauth2.revoke(token.access_token);
-        gapi.client.setToken('');
+    const storedToken = JSON.parse(localStorage.getItem('google_auth_token'));
+    if (storedToken) {
+        google.accounts.oauth2.revoke(storedToken.access_token, () => {
+            console.log('Token revogado.');
+        });
     }
-    // Mostra novamente a tela de login
+    localStorage.removeItem('google_auth_token');
+    gapi.client.setToken(null);
+    showLoginScreen();
+    driveFileId = null;
+}
+
+// Funções que controlam a visibilidade da UI
+function showLoginScreen() {
     document.getElementById('main-app-content').style.display = 'none';
     document.getElementById('login-container').style.display = 'block';
+    document.getElementById('login-message').style.display = 'none';
     document.getElementById('authorize_button').style.display = 'block';
-    driveFileId = null;
+}
+
+function showAppScreen() {
+    document.getElementById('login-container').style.display = 'none';
+    document.getElementById('main-app-content').style.display = 'block';
+}
+
+function handleAuthError(message) {
+    localStorage.removeItem('google_auth_token');
+    showLoginScreen();
+    document.getElementById('authorize_button').innerText = message;
 }
 
 // #############################################################
@@ -123,10 +153,12 @@ async function refreshData() {
     console.log("Dados sincronizados.");
 }
 
+// ... (Copie e cole aqui o restante do seu código, desde `findOrCreateDataFile` até ao final de `window.onload`)
+// Para garantir, o bloco completo de funções que faltam está abaixo.
+
 async function findOrCreateDataFile() { try { const response = await gapi.client.drive.files.list({ q: `name='${APP_DATA_FILE_NAME}' and 'root' in parents and trashed=false`, pageSize: 1, fields: 'files(id, name)' }); if (response.result.files && response.result.files.length > 0) { driveFileId = response.result.files[0].id; } else { const createResponse = await gapi.client.drive.files.create({ resource: { name: APP_DATA_FILE_NAME, mimeType: 'application/json' }, fields: 'id' }); driveFileId = createResponse.result.id; await saveDataToDrive(); } } catch(e) { console.error("Erro ao procurar ou criar ficheiro:", e); } }
 async function loadDataFromDrive(updateUI) { if (!driveFileId) return; try { const response = await gapi.client.drive.files.get({ fileId: driveFileId, alt: 'media' }); if (response.body && response.body.length > 0) { const data = JSON.parse(response.body); tools = data.tools || []; techs = data.techs || []; assignments = data.assignments || []; history = data.history || []; } else { tools = []; techs = []; assignments = []; history = []; } if (updateUI) { updateOperationSelects(); } } catch (e) { console.error("Erro ao carregar dados:", e); if(e.result && e.result.error && e.result.error.message.includes("File not found")){ driveFileId = null; await findOrCreateDataFile(); } } }
 async function saveDataToDrive() { if (!driveFileId) return; const dataToSave = { tools, techs, assignments, history }; const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' }); const formData = new FormData(); formData.append('metadata', new Blob([JSON.stringify({ mimeType: 'application/json' })], { type: 'application/json' })); formData.append('file', blob); try { await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`, { method: 'PATCH', headers: new Headers({ 'Authorization': `Bearer ${gapi.client.getToken().access_token}` }), body: formData }); } catch(e) { console.error("Erro ao salvar dados:", e); } }
-
 async function updateAndSave(modalToUpdate = null) { await saveDataToDrive(); if (modalToUpdate) { openModal(modalToUpdate); } else { updateOperationSelects(); } }
 function sortByStatusAndName(a, b) { if (a.status === 'ativo' && b.status !== 'ativo') return -1; if (a.status !== 'ativo' && b.status === 'ativo') return 1; return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });}
 function sortByName(a, b) { return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }); }
