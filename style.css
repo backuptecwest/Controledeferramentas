@@ -4,40 +4,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helv
 .main-layout { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-start; }
 .main-operations { flex: 2; min-width: 300px; }
 .sidebar-controls { flex: 1; min-width: 280px; }
-
-/* Títulos */
 h1 { text-align: center; font-size: 2.2em; font-weight: 700; margin-bottom: 20px; color: transparent; background: linear-gradient(45deg, #007bff, #1d2129); -webkit-background-clip: text; background-clip: text; }
 h2 { display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; font-size: 20px; color: #1d2129; }
 .emoji { font-size: 24px; }
-
-/* Cards */
 .card { background-color: #ffffff; padding: 20px; margin-bottom: 15px; border-radius: 12px; border: 1px solid #ddd; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
-
-/* Formulários */
 .form-group { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
 .form-group label { display: block; margin-bottom: 5px; font-weight: bold; flex-shrink: 0; }
 input[type="text"], select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-
-/* Botões */
 button { background-color: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 25px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 button:hover { background-color: #0056b3; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-.button-group, .control-panel { display: flex; flex-direction: column; gap: 15px; }
+.button-group, .control-panel { display: flex; flex-direction: column; gap: 10px; }
 .button-group button, .control-panel button { width: 100%; box-sizing: border-box; }
 .small-button { padding: 6px 12px; font-size: 12px; background-color: #6c757d; width: auto !important; }
 .small-button:hover { background-color: #5a6268; }
 .refresh-button { background-color: #28a745; }
 .refresh-button:hover { background-color: #218838; }
-
-/* Outros Estilos */
 #user-profile { text-align: center; font-weight: bold; margin-bottom: 15px; word-break: break-all; }
 .info-display { display: none; background-color: #e9ecef; padding: 10px; margin-top: 5px; border-radius: 8px; border-left: 4px solid #007bff; font-size: 14px; color: #495057; }
 .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); animation: fadeIn 0.3s; }
-.modal-content { background-color: #fefefe; margin: 10% auto; padding: 30px; border: 1px solid #888; width: 80%; max-width: 900px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); animation: slideIn 0.4s; }
+.modal-content { background-color: #fefefe; margin: 5% auto; padding: 30px; border: 1px solid #888; width: 80%; max-width: 900px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); animation: slideIn 0.4s; }
 .close-btn { color: #aaa; float: right; font-size: 32px; font-weight: bold; line-height: 1; }
 .close-btn:hover, .close-btn:focus { color: black; text-decoration: none; cursor: pointer; }
 @keyframes fadeIn { from {opacity: 0} to {opacity: 1} }
 @keyframes slideIn { from {transform: translateY(-50px)} to {transform: translateY(0)} }
-.management-list, .history-list { list-style-type: none; padding: 0; margin-top: 20px; max-height: 400px; overflow-y: auto; }
+.management-list, .history-list { list-style-type: none; padding: 0; margin-top: 20px; max-height: 50vh; overflow-y: auto; }
 .management-list li { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #eee; gap: 15px; }
 .management-list li span:first-child { flex-grow: 1; }
 .management-list .button-group { flex-direction: row; flex-shrink: 0; width: auto; }
@@ -46,13 +36,4 @@ button:hover { background-color: #0056b3; transform: translateY(-2px); box-shado
 .status-in-use { background-color: #dc3545; }
 .status-inactive { background-color: #6c757d; }
 .item-inativo span:first-child { color: #999; text-decoration: line-through; }
-
-/* NOVO: Media Query para responsividade em telemóveis */
-@media (max-width: 768px) {
-    .main-layout {
-        flex-direction: column;
-    }
-    .main-operations, .sidebar-controls {
-        width: 100%;
-    }
-}
+@media (max-width: 768px) { .main-layout { flex-direction: column; } .main-operations, .sidebar-controls { width: 100%; } }
