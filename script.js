@@ -13,7 +13,7 @@ let driveFileId = null;
 let tools = [], techs = [], assignments = [], history = [];
 let pollingIntervalId = null; 
 
-// --- LÓGICA DE INICIALIZAÇÃO ROBUSTA (v5.0) ---
+// --- LÓGICA DE INICIALIZAÇÃO ROBUSTA (v5.1) ---
 
 function gapiLoaded() { gapi.load('client', initializeGapiClient); }
 function gisLoaded() { initializeGisClient(); }
@@ -43,34 +43,44 @@ let initCalled = false;
 async function maybeInit() {
     if (gapiClientPromise && gisClient && !initCalled) {
         initCalled = true;
+        showLoadingScreen(); // Mostra "A carregar..."
         try {
             await gapiClientPromise;
+            // Tenta o login silencioso
             gisClient.requestAccessToken({ prompt: 'none' });
         } catch (error) {
             console.error("Falha na inicialização:", error);
-            showLoginScreen("Erro ao iniciar. Por favor, faça o login.");
+            showLoginScreen("Erro ao iniciar. Tente o login manual.");
         }
     }
 }
 
 async function handleAuthResponse(tokenResponse) {
     if (tokenResponse.error) {
+        console.log("Login silencioso falhou ou foi revogado.");
         showLoginScreen("Login com Google");
         return;
     }
+    // Esconde a tela de login e mostra a aplicação
     gapi.client.setToken(tokenResponse);
     showAppScreen();
     await onLogin();
 }
 
 function handleAuthClick() {
-    if (gisClient) gisClient.requestAccessToken({ prompt: 'consent' });
+    if (gisClient) {
+        gisClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+        alert("Serviço de login não carregou. Por favor, recarregue a página.");
+    }
 }
 
 function handleSignoutClick() {
     if (pollingIntervalId) clearInterval(pollingIntervalId);
     const token = gapi.client.getToken();
-    if (token) { google.accounts.oauth2.revoke(token.access_token, () => { console.log('Token revogado.'); }); }
+    if (token) {
+        google.accounts.oauth2.revoke(token.access_token, () => { console.log('Token revogado.'); });
+    }
     gapi.client.setToken(null);
     showLoginScreen("Login com Google");
     driveFileId = null;
@@ -80,6 +90,7 @@ function handleSignoutClick() {
 function showLoadingScreen() { document.getElementById('main-app-content').style.display = 'none'; document.getElementById('login-container').style.display = 'block'; document.getElementById('authorize_button').style.display = 'none'; document.getElementById('login-message').style.display = 'block'; document.getElementById('login-message').innerText = "A carregar..."; }
 function showLoginScreen(message) { document.getElementById('main-app-content').style.display = 'none'; document.getElementById('login-container').style.display = 'block'; document.getElementById('login-message').style.display = 'none'; const authButton = document.getElementById('authorize_button'); authButton.style.display = 'block'; authButton.innerText = message; }
 function showAppScreen() { document.getElementById('login-container').style.display = 'none'; document.getElementById('main-app-content').style.display = 'block'; }
+
 
 // --- LÓGICA DA APLICAÇÃO ---
 
@@ -134,8 +145,9 @@ function showReturnInfo() { const display = document.getElementById('return-info
 function openModal(modalId) { const modal = document.getElementById(modalId); if(modal) { switch(modalId) { case 'tools-modal': case 'techs-modal': updateManagementLists(); break; case 'history-modal': updateHistoryLog(); break; } modal.style.display = 'block'; } }
 function closeModal(modalElement) { modalElement.style.display = 'none'; }
 function updateManagementLists() { const toolList = document.getElementById('tool-management-list'); toolList.innerHTML = ''; [...tools].sort(sortByStatusAndName).forEach(tool => { const li = document.createElement('li'); li.className = `item-${tool.status}`; li.innerHTML = `<span>${tool.name}</span> <div class="button-group"><button onclick="editTool(${tool.id})">Editar</button><button onclick="toggleToolStatus(${tool.id})">${tool.status === 'ativo' ? 'Inativar' : 'Reativar'}</button></div>`; toolList.appendChild(li); }); const techList = document.getElementById('tech-management-list'); techList.innerHTML = ''; [...techs].sort(sortByStatusAndName).forEach(tech => { const li = document.createElement('li'); li.className = `item-${tech.status}`; li.innerHTML = `<span>${tech.name}</span> <div class="button-group"><button onclick="editTech(${tech.id})">Editar</button><button onclick="toggleTechStatus(${tech.id})">${tech.status === 'ativo' ? 'Inativar' : 'Reativar'}</button></div>`; techList.appendChild(li); }); }
-// CORREÇÃO (v5.0): Corrige o bug na lista de técnicos que usava `tool.id`
 function updateOperationSelects(keepSelectedTool, keepSelectedTech, keepSelectedReturn) { const toolSelect = document.getElementById('tool-select'); const returnToolSelect = document.getElementById('return-tool-select'); const techSelect = document.getElementById('tech-select'); const toolsInUseIds = assignments.map(a => a.toolId); const availableTools = tools.filter(t => t.status === 'ativo' && !toolsInUseIds.includes(t.id)); toolSelect.innerHTML = '<option value="">Selecione...</option>'; [...availableTools].sort(sortByName).forEach(tool => { toolSelect.innerHTML += `<option value="${tool.id}">${tool.name}</option>`; }); const assignedTools = tools.filter(t => toolsInUseIds.includes(t.id)); returnToolSelect.innerHTML = '<option value="">Selecione...</option>'; [...assignedTools].sort(sortByName).forEach(tool => { returnToolSelect.innerHTML += `<option value="${tool.id}">${tool.name}</option>`; }); const activeTechs = techs.filter(t => t.status === 'ativo'); techSelect.innerHTML = '<option value="">Selecione...</option>'; [...activeTechs].sort(sortByName).forEach(tech => { techSelect.innerHTML += `<option value="${tech.id}">${tech.name}</option>`; }); if (keepSelectedTool) toolSelect.value = keepSelectedTool; if (keepSelectedTech) techSelect.value = keepSelectedTech; if (keepSelectedReturn) returnToolSelect.value = keepSelectedReturn; if(!returnToolSelect.value) { document.getElementById('return-info-display').style.display = 'none'; } else { showReturnInfo.call(returnToolSelect); } }
 function updateHistoryLog() { const historyLog = document.getElementById('history-log'); historyLog.innerHTML = ''; if (history.length === 0) { historyLog.innerHTML = '<li>Nenhuma devolução registrada.</li>'; return; } [...history].sort((a,b) => new Date(b.returnDate.split('/').reverse().join('-')) - new Date(a.returnDate.split('/').reverse().join('-'))).forEach(entry => { const li = document.createElement('li'); const contextText = entry.context ? `(Cliente/OS: ${entry.context})` : ''; li.innerHTML = `<strong>${entry.toolName}</strong> com <strong>${entry.techName}</strong> ${contextText}<br><small>Saída: ${entry.checkoutDate} | Devolução: ${entry.returnDate}</small>`; historyLog.appendChild(li); }); }
 function showAvailableToolsList(shouldOpenModal = true) { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">✅</span> Ferramentas Disponíveis'; list.innerHTML = ''; const availableTools = tools.filter(tool => tool.status === 'ativo' && !assignments.some(a => a.toolId == tool.id)); if (availableTools.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta disponível.</li>'; } else { [...availableTools].sort(sortByName).forEach(tool => { const li = document.createElement('li'); li.innerHTML = `<span>${tool.name}</span> <span class="status status-available">DISPONÍVEL</span>`; list.appendChild(li); }); } if(shouldOpenModal) openModal('status-report-modal'); }
 function showInUseToolsList(shouldOpenModal = true) { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">➡️</span> Ferramentas em Uso'; list.innerHTML = ''; const activeAssignments = assignments.filter(a => tools.some(t => t.id == a.toolId && t.status === 'ativo')); if (activeAssignments.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta em uso.</li>'; } else { [...activeAssignments].sort((a,b) => tools.find(t=>t.id==a.toolId).name.localeCompare(tools.find(t=>t.id==b.toolId).name)).forEach(a => { const tool = tools.find(t => t.id == a.toolId); const tech = techs.find(t => t.id == a.techId); if(tool){const li = document.createElement('li'); const techName = tech ? tech.name : '?'; const contextText = a.context ? `(Cliente/OS: ${a.context})` : ''; li.innerHTML = `<span>${tool.name}</span> com <strong>${techName}</strong> ${contextText}`; list.appendChild(li);} }); } if(shouldOpenModal) openModal('status-report-modal'); }
+// A função window.onload é agora substituída pela lógica de inicialização no topo.
+// Os event listeners dos botões são ativados na nova função activateAppEventListeners().
