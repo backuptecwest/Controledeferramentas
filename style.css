@@ -3,7 +3,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helv
 .container { max-width: 1200px; margin: 0 auto; }
 .main-layout { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-start; }
 .main-operations { flex: 2; min-width: 300px; }
-.sidebar-controls { min-width: 280px; }
+.sidebar-controls { flex: 1; min-width: 280px; }
 
 /* Títulos */
 h1 { text-align: center; font-size: 2.2em; font-weight: 700; margin-bottom: 20px; color: transparent; background: linear-gradient(45deg, #007bff, #1d2129); -webkit-background-clip: text; background-clip: text; }
@@ -46,3 +46,13 @@ button:hover { background-color: #0056b3; transform: translateY(-2px); box-shado
 .status-in-use { background-color: #dc3545; }
 .status-inactive { background-color: #6c757d; }
 .item-inativo span:first-child { color: #999; text-decoration: line-through; }
+
+/* NOVO: Media Query para responsividade em telemóveis */
+@media (max-width: 768px) {
+    .main-layout {
+        flex-direction: column;
+    }
+    .main-operations, .sidebar-controls {
+        width: 100%;
+    }
+}
