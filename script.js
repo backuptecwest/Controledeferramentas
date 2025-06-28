@@ -1,6 +1,6 @@
 // #####   COLE AS SUAS CHAVES DO GOOGLE AQUI   #####
-const API_KEY = 'COLE_A_SUA_CHAVE_DE_API_AQUI';
-const CLIENT_ID = 'COLE_O_SEU_ID_DO_CLIENTE_AQUI';
+const API_KEY = 'AIzaSyBX0InA93juV_8ATl7aHm-ogbHLY15hphk';
+const CLIENT_ID = '343451091287-0554ofs77qinlt2tg1kppijjip16chc0.apps.googleusercontent.com';
 // ######################################################
 
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
