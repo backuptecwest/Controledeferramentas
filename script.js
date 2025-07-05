@@ -5,12 +5,19 @@ import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc
 
 // #####   COLE A SUA CONFIGURAÇÃO DO FIREBASE AQUI   #####
 const firebaseConfig = {
-    apiKey: "AIzaSyDrQ2IKaMylyDw4AfYtT1QzNltYR8SCXo4",
-    authDomain: "tecwest-controles-7e2eb.firebaseapp.com",
-    projectId: "tecwest-controles-7e2eb",
-    storageBucket: "tecwest-controles-7e2eb.firebasestorage.app",
-    messagingSenderId: "997393524005",
-    appId: "1:997393524005:web:d3c472d7249555aaa826cc"
+
+  apiKey: "AIzaSyDrQ2IKaMylyDw4AfYtT1QzNltYR8SCXo4",
+
+  authDomain: "tecwest-controles-7e2eb.firebaseapp.com",
+
+  projectId: "tecwest-controles-7e2eb",
+
+  storageBucket: "tecwest-controles-7e2eb.firebasestorage.app",
+
+  messagingSenderId: "997393524005",
+
+  appId: "1:997393524005:web:d3c472d7249555aaa826cc"
+
 };
 // #########################################################
 
