@@ -1,17 +1,18 @@
-// Importa as funções necessárias do Firebase v9+
+// Importa as funções do Firebase v9+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-// #####   COLE A SUA CONFIGURAÇÃO DO FIREBASE AQUI   #####
+// #####   COLE AS SUAS CREDENCIAIS AQUI   #####
 const firebaseConfig = {
     apiKey: "AIzaSyDrQ2IKaMylyDw4AfYtT1QzNltYR8SCXo4",
     authDomain: "tecwest-controles-7e2eb.firebaseapp.com",
     projectId: "tecwest-controles-7e2eb",
-    storageBucket: "tecwest-controles-7e2eb.firebasestorage.app",
-    messagingSenderId: "997393524005",
-    appId: "1:997393524005:web:d3c472d7249555aaa826cc"
+    // etc...
 };
+
+// NOVO: Cole o seu UID de administrador aqui. Ele vai identificar a sua empresa.
+const COMPANY_ID = 'Xfbt8ejWoxW4OcWIH04Ip6F7hdr2';
 // #########################################################
 
 // --- Inicialização do Firebase ---
@@ -21,12 +22,12 @@ const db = getFirestore(app);
 
 // --- Variáveis Globais ---
 let currentUser = null;
+let isAdmin = false;
 let tools = [], techs = [], assignments = [], history = [];
+let authorizedUsers = [];
 const unsubscribes = [];
 
-// --- LÓGICA DE AUTENTICAÇÃO COM E-MAIL/SENHA ---
-
-// Observador principal que reage a mudanças de login
+// --- LÓGICA DE AUTENTICAÇÃO ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
@@ -34,6 +35,7 @@ onAuthStateChanged(auth, (user) => {
         onLogin();
     } else {
         currentUser = null;
+        isAdmin = false;
         showLoginScreen();
         unsubscribes.forEach(unsub => unsub());
         unsubscribes.length = 0;
@@ -41,32 +43,25 @@ onAuthStateChanged(auth, (user) => {
 });
 
 function handleRegister() {
-    const email = document.getElementById('register-email').value;
-    const password = document.getElementById('register-password').value;
+    const emailInput = document.getElementById('register-email');
+    const passwordInput = document.getElementById('register-password');
     const errorP = document.getElementById('register-error');
-    errorP.style.display = 'none';
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    errorP.textContent = '';
 
-    if (!email || !password) {
-        errorP.textContent = "Por favor, preencha todos os campos.";
-        errorP.style.display = 'block';
+    // Verifica se o e-mail está na lista de autorizados
+    const isAuthorized = authorizedUsers.some(user => user.email === email);
+    if (!isAuthorized) {
+        errorP.textContent = "Este e-mail não está autorizado a registar-se.";
         return;
     }
 
     createUserWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-            console.log("Utilizador registado com sucesso:", userCredential.user);
-            // O onAuthStateChanged tratará de mostrar a app
-        })
         .catch((error) => {
-            if (error.code === 'auth/email-already-in-use') {
-                errorP.textContent = "Este e-mail já está em uso.";
-            } else if (error.code === 'auth/weak-password') {
-                errorP.textContent = "A senha é muito fraca. Use pelo menos 6 caracteres.";
-            } else {
-                errorP.textContent = "Ocorreu um erro ao registar.";
-            }
-            errorP.style.display = 'block';
-            console.error("Erro no registo:", error);
+            if (error.code === 'auth/email-already-in-use') { errorP.textContent = "Este e-mail já está em uso."; }
+            else if (error.code === 'auth/weak-password') { errorP.textContent = "A senha é muito fraca."; }
+            else { errorP.textContent = "Ocorreu um erro ao registar."; }
         });
 }
 
@@ -74,97 +69,147 @@ function handleLogin() {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     const errorP = document.getElementById('login-error');
-    errorP.style.display = 'none';
-
-    if (!email || !password) {
-        errorP.textContent = "Por favor, preencha todos os campos.";
-        errorP.style.display = 'block';
-        return;
-    }
-
+    errorP.textContent = '';
     signInWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-            console.log("Utilizador logado com sucesso:", userCredential.user);
-            // O onAuthStateChanged tratará de mostrar a app
-        })
-        .catch((error) => {
-            errorP.textContent = "E-mail ou senha incorretos.";
-            errorP.style.display = 'block';
-            console.error("Erro no login:", error);
-        });
+        .catch((error) => { errorP.textContent = "E-mail ou senha incorretos."; });
 }
 
-function handleSignoutClick() {
-    signOut(auth);
-}
-
-// Funções de controlo da UI
+function handleSignoutClick() { signOut(auth); }
 function showLoginScreen() { document.getElementById('main-app-content').style.display = 'none'; document.getElementById('auth-container').style.display = 'block'; }
 function showAppScreen() { document.getElementById('auth-container').style.display = 'none'; document.getElementById('main-app-content').style.display = 'block'; }
 
 // --- LÓGICA DA APLICAÇÃO ---
-function onLogin() {
+async function onLogin() {
     activateMainAppEventListeners();
     document.getElementById('user-profile').innerText = `Logado como: ${currentUser.email}`;
+    // Verifica se o utilizador logado é um admin
+    const adminDoc = await getDocs(query(collection(db, "admins"), where("__name__", "==", currentUser.uid)));
+    isAdmin = !adminDoc.empty && adminDoc.docs[0].data().isAdmin === true;
+    document.getElementById('open-users-btn').style.display = isAdmin ? 'block' : 'none';
+    
     listenToDataChanges();
 }
 
-// NOVO: Listeners separados para a tela de autenticação
-function activateAuthEventListeners() {
-    document.getElementById('login-btn').onclick = handleLogin;
-    document.getElementById('register-btn').onclick = handleRegister;
-    document.getElementById('show-register-link').onclick = (e) => { 
-        e.preventDefault(); 
-        document.getElementById('login-form').style.display = 'none'; 
-        document.getElementById('register-form').style.display = 'block'; 
-    };
-    document.getElementById('show-login-link').onclick = (e) => { 
-        e.preventDefault(); 
-        document.getElementById('register-form').style.display = 'none'; 
-        document.getElementById('login-form').style.display = 'block'; 
-    };
+function listenToDataChanges() {
+    if (!currentUser) return;
+    
+    // Escuta as coleções partilhadas da empresa
+    const dataCollections = ['tools', 'techs', 'assignments', 'history'];
+    const dataArrays = { tools, techs, assignments, history };
+    
+    dataCollections.forEach(col => {
+        const ref = collection(db, "companies", COMPANY_ID, col);
+        const q = (col === 'history') ? query(ref, orderBy("returnDate", "desc")) : query(ref, orderBy("name"));
+
+        const unsub = onSnapshot(q, snapshot => {
+            dataArrays[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Atualiza a UI globalmente
+            updateUI(col);
+        });
+        unsubscribes.push(unsub);
+    });
+
+    // Se for admin, escuta também a lista de utilizadores autorizados
+    if(isAdmin) {
+        const authUsersRef = collection(db, "companies", COMPANY_ID, "authorized_users");
+        const unsub = onSnapshot(authUsersRef, snapshot => {
+            authorizedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateUserManagementList();
+        });
+        unsubscribes.push(unsub);
+    }
 }
 
-// NOVO: Listeners para a aplicação principal (só são ativados após o login)
-function activateMainAppEventListeners() {
-    document.getElementById('signout_button').onclick = handleSignoutClick;
-    document.getElementById('open-available-btn').onclick = showAvailableToolsList;
-    document.getElementById('open-inuse-btn').onclick = showInUseToolsList;
-    document.getElementById('open-history-btn').onclick = function() { openModal('history-modal'); };
-    document.getElementById('open-tools-btn').onclick = function() { openModal('tools-modal'); };
-    document.getElementById('open-techs-btn').onclick = function() { openModal('techs-modal'); };
-    document.getElementById('assign-tool-btn').onclick = assignTool;
-    document.getElementById('return-tool-btn').onclick = returnTool;
-    document.getElementById('add-tool-btn').onclick = addTool;
-    document.getElementById('add-tech-btn').onclick = addTech;
-    document.getElementById('return-tool-select').onchange = showReturnInfo;
-    document.querySelectorAll('.close-btn').forEach(btn => btn.onclick = function() { closeModal(btn.closest('.modal')); });
-    window.onclick = function(event) { if (event.target.classList.contains('modal')) { closeModal(event.target); } };
-    document.getElementById('tool-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTool(); } });
-    document.getElementById('tech-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTech(); } });
+// Atualiza a UI com base nos dados recebidos
+function updateUI(updatedCollection) {
+    updateOperationSelects();
+    // Atualiza as modais se estiverem abertas
+    const openModal = document.querySelector('.modal[style*="display: block"]');
+    if (openModal) {
+        if((openModal.id === 'tools-modal' || openModal.id === 'techs-modal') && (updatedCollection === 'tools' || updatedCollection === 'techs')) {
+            updateManagementLists();
+        } else if (openModal.id === 'history-modal' && updatedCollection === 'history') {
+            updateHistoryLog();
+        } else if (openModal.id === 'status-report-modal' && (updatedCollection === 'tools' || updatedCollection === 'assignments')) {
+            const title = document.getElementById('status-report-title').textContent;
+            if (title.includes("Disponíveis")) showAvailableToolsList(false);
+            else if (title.includes("em Uso")) showInUseToolsList(false);
+        }
+    }
 }
 
-// --- Funções de Dados e UI (sem alterações) ---
-function listenToDataChanges() { if (!currentUser) return; const uid = currentUser.uid; unsubscribes.push(onSnapshot(query(collection(db, "users", uid, "tools"), orderBy("name")), snapshot => { tools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateUI(); })); unsubscribes.push(onSnapshot(query(collection(db, "users", uid, "techs"), orderBy("name")), snapshot => { techs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateUI(); })); unsubscribes.push(onSnapshot(collection(db, "users", uid, "assignments"), snapshot => { assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateUI(); })); unsubscribes.push(onSnapshot(query(collection(db, "users", uid, "history"), orderBy("returnDate", "desc")), snapshot => { history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); const historyModal = document.querySelector('#history-modal[style*="display: block"]'); if (historyModal) updateHistoryLog(); })); }
-function updateUI() { updateOperationSelects(); const openModal = document.querySelector('.modal[style*="display: block"]'); if (openModal) { switch(openModal.id) { case 'tools-modal': case 'techs-modal': updateManagementLists(); break; case 'status-report-modal': const title = document.getElementById('status-report-title').textContent; if (title.includes("Disponíveis")) { showAvailableToolsList(false); } else if (title.includes("em Uso")) { showInUseToolsList(false); } break; } } }
-function sortByStatusAndName(a, b) { if (a.status === 'ativo' && b.status !== 'ativo') return -1; if (a.status !== 'ativo' && b.status === 'ativo') return 1; return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });}
-function sortByName(a, b) { return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }); }
-function addTool() { const toolNameInput = document.getElementById('tool-name'); const toolName = toolNameInput.value.trim(); if (toolName) { addDoc(collection(db, "users", currentUser.uid, "tools"), { name: toolName, status: 'ativo', createdAt: serverTimestamp() }); toolNameInput.value = ''; } else { alert('Por favor, digite o nome da ferramenta.'); } }
-function addTech() { const techNameInput = document.getElementById('tech-name'); const techName = techNameInput.value.trim(); if (techName) { addDoc(collection(db, "users", currentUser.uid, "techs"), { name: techName, status: 'ativo', createdAt: serverTimestamp() }); techNameInput.value = ''; } else { alert('Por favor, digite o nome do técnico.'); } }
-function assignTool() { const toolSelect = document.getElementById('tool-select'); const techSelect = document.getElementById('tech-select'); const contextInput = document.getElementById('assignment-context'); if (!toolSelect.value || !techSelect.value) { alert('Por favor, selecione uma ferramenta e um técnico.'); return; } addDoc(collection(db, "users", currentUser.uid, "assignments"), { toolId: toolSelect.value, techId: techSelect.value, context: contextInput.value.trim(), checkoutDate: serverTimestamp() }); toolSelect.value = ''; techSelect.value = ''; contextInput.value = ''; }
-function returnTool() { const assignmentToolId = document.getElementById('return-tool-select').value; if (!assignmentToolId) { alert('Por favor, selecione a ferramenta a ser devolvida.'); return; } const assignment = assignments.find(a => a.toolId === assignmentToolId); if (!assignment) return; const tool = tools.find(t => t.id === assignment.toolId); const tech = techs.find(t => t.id === assignment.techId); addDoc(collection(db, "users", currentUser.uid, "history"), { toolName: tool ? tool.name : '?', techName: tech ? tech.name : '?', context: assignment.context, checkoutDate: assignment.checkoutDate, returnDate: serverTimestamp() }); deleteDoc(doc(db, "users", currentUser.uid, "assignments", assignment.id)); }
-function editTool(toolId) { const tool = tools.find(t => t.id === toolId); const newName = prompt('Digite o novo nome:', tool.name); if (newName && newName.trim() !== '') { updateDoc(doc(db, "users", currentUser.uid, "tools", toolId), { name: newName.trim() }); } }
-function editTech(techId) { const tech = techs.find(t => t.id === techId); const newName = prompt('Digite o novo nome:', tech.name); if (newName && newName.trim() !== '') { updateDoc(doc(db, "users", currentUser.uid, "techs", techId), { name: newName.trim() }); } }
-function toggleToolStatus(toolId, currentStatus) { if (assignments.some(a => a.toolId === toolId)) { alert('Não é possível inativar ferramenta em uso.'); return; } const newStatus = currentStatus === 'ativo' ? 'inativo' : 'ativo'; updateDoc(doc(db, "users", currentUser.uid, "tools", toolId), { status: newStatus }); }
-function toggleTechStatus(techId, currentStatus) { const newStatus = currentStatus === 'ativo' ? 'inativo' : 'ativo'; updateDoc(doc(db, "users", currentUser.uid, "techs", techId), { status: newStatus }); }
-function showReturnInfo() { const display = document.getElementById('return-info-display'); const selectedToolId = this.value; if (!selectedToolId) { display.innerHTML = ''; display.style.display = 'none'; return; } const assignment = assignments.find(a => a.toolId == selectedToolId); const tech = techs.find(t => t.id == assignment.techId); const techName = tech ? tech.name : '?'; const contextText = assignment.context || 'N/A'; display.innerHTML = `<strong>Técnico:</strong> ${techName} <br> <strong>Cliente/OS:</strong> ${contextText}`; display.style.display = 'block'; }
-function openModal(modalId) { const modal = document.getElementById(modalId); if(modal) { switch(modalId) { case 'tools-modal': case 'techs-modal': updateManagementLists(); break; case 'history-modal': updateHistoryLog(); break; } modal.style.display = 'block'; } }
-function closeModal(modalElement) { modalElement.style.display = 'none'; }
-function updateManagementLists() { const toolList = document.getElementById('tool-management-list'); toolList.innerHTML = ''; [...tools].sort(sortByStatusAndName).forEach(tool => { const li = document.createElement('li'); li.className = `item-${tool.status}`; li.innerHTML = `<span>${tool.name}</span> <div class="button-group"><button onclick="editTool('${tool.id}')">Editar</button><button onclick="toggleToolStatus('${tool.id}', '${tool.status}')">${tool.status === 'ativo' ? 'Inativar' : 'Reativar'}</button></div>`; toolList.appendChild(li); }); const techList = document.getElementById('tech-management-list'); techList.innerHTML = ''; [...techs].sort(sortByStatusAndName).forEach(tech => { const li = document.createElement('li'); li.className = `item-${tech.status}`; li.innerHTML = `<span>${tech.name}</span> <div class="button-group"><button onclick="editTech('${tech.id}')">Editar</button><button onclick="toggleTechStatus('${tech.id}', '${tech.status}')">${tech.status === 'ativo' ? 'Inativar' : 'Reativar'}</button></div>`; techList.appendChild(li); }); }
+// --- Funções de Gestão de Utilizadores (só para admins) ---
+function addAuthorizedUser() {
+    const emailInput = document.getElementById('user-email');
+    const email = emailInput.value.trim().toLowerCase();
+    if (email) {
+        addDoc(collection(db, "companies", COMPANY_ID, "authorized_users"), { email: email });
+        emailInput.value = '';
+    }
+}
+
+function removeAuthorizedUser(userId) {
+    if(confirm("Tem a certeza que quer remover o acesso deste utilizador?")) {
+        deleteDoc(doc(db, "companies", COMPANY_ID, "authorized_users", userId));
+    }
+}
+
+function updateUserManagementList() {
+    const userList = document.getElementById('user-management-list');
+    userList.innerHTML = '';
+    authorizedUsers.forEach(user => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${user.email}</span><div class="button-group"><button class="small-button" onclick="window.removeAuthorizedUser('${user.id}')">Remover</button></div>`;
+        userList.appendChild(li);
+    });
+}
+window.removeAuthorizedUser = removeAuthorizedUser; // Torna a função acessível ao HTML
+
+// --- Funções da Aplicação (agora usam o COMPANY_ID) ---
+function addTool() { const name = document.getElementById('tool-name').value.trim(); if(name) addDoc(collection(db, "companies", COMPANY_ID, "tools"), { name, status: 'ativo' }); document.getElementById('tool-name').value = ''; }
+function addTech() { const name = document.getElementById('tech-name').value.trim(); if(name) addDoc(collection(db, "companies", COMPANY_ID, "techs"), { name, status: 'ativo' }); document.getElementById('tech-name').value = ''; }
+function assignTool() { const toolId = document.getElementById('tool-select').value; const techId = document.getElementById('tech-select').value; const context = document.getElementById('assignment-context').value.trim(); if (!toolId || !techId) return alert('Selecione uma ferramenta e um técnico.'); addDoc(collection(db, "companies", COMPANY_ID, "assignments"), { toolId, techId, context, checkoutDate: serverTimestamp() }); document.getElementById('tool-select').value = ''; document.getElementById('tech-select').value = ''; document.getElementById('assignment-context').value = ''; }
+function returnTool() { const toolId = document.getElementById('return-tool-select').value; if (!toolId) return alert('Selecione uma ferramenta para devolver.'); const assignment = assignments.find(a => a.toolId === toolId); if (!assignment) return; const tool = tools.find(t => t.id === assignment.toolId); const tech = techs.find(t => t.id === assignment.techId); addDoc(collection(db, "companies", COMPANY_ID, "history"), { toolName: tool?.name || '?', techName: tech?.name || '?', context: assignment.context, checkoutDate: assignment.checkoutDate, returnDate: serverTimestamp() }); deleteDoc(doc(db, "companies", COMPANY_ID, "assignments", assignment.id)); }
+function editTool(toolId) { const newName = prompt('Digite o novo nome:', tools.find(t => t.id === toolId).name); if (newName?.trim()) updateDoc(doc(db, "companies", COMPANY_ID, "tools", toolId), { name: newName.trim() }); }
+function editTech(techId) { const newName = prompt('Digite o novo nome:', techs.find(t => t.id === techId).name); if (newName?.trim()) updateDoc(doc(db, "companies", COMPANY_ID, "techs", techId), { name: newName.trim() }); }
+function toggleToolStatus(toolId, status) { if(assignments.some(a => a.toolId === toolId)) return alert('Não é possível inativar ferramenta em uso.'); updateDoc(doc(db, "companies", COMPANY_ID, "tools", toolId), { status: status === 'ativo' ? 'inativo' : 'ativo' }); }
+function toggleTechStatus(techId, status) { updateDoc(doc(db, "companies", COMPANY_ID, "techs", techId), { status: status === 'ativo' ? 'inativo' : 'ativo' }); }
+
+// --- Funções de Renderização da UI (sem alterações de lógica) ---
+function updateManagementLists() { /* ... código idêntico ao anterior ... */ }
+function updateOperationSelects() { /* ... código idêntico ao anterior ... */ }
+// ... e todas as outras funções de UI
+// Bloco completo
+function updateManagementLists() { const toolList = document.getElementById('tool-management-list'); toolList.innerHTML = ''; [...tools].sort(sortByStatusAndName).forEach(tool => { const li = document.createElement('li'); li.className = `item-${tool.status}`; li.innerHTML = `<span>${tool.name}</span> <div class="button-group"><button onclick="window.editTool('${tool.id}')">Editar</button><button onclick="window.toggleToolStatus('${tool.id}', '${tool.status}')">${tool.status === 'ativo' ? 'Inativar' : 'Reativar'}</button></div>`; toolList.appendChild(li); }); const techList = document.getElementById('tech-management-list'); techList.innerHTML = ''; [...techs].sort(sortByStatusAndName).forEach(tech => { const li = document.createElement('li'); li.className = `item-${tech.status}`; li.innerHTML = `<span>${tech.name}</span> <div class="button-group"><button onclick="window.editTech('${tech.id}')">Editar</button><button onclick="window.toggleTechStatus('${tech.id}', '${tech.status}')">${tech.status === 'ativo' ? 'Inativar' : 'Reativar'}</button></div>`; techList.appendChild(li); }); }
 function updateOperationSelects() { const toolSelect = document.getElementById('tool-select'); const returnToolSelect = document.getElementById('return-tool-select'); const techSelect = document.getElementById('tech-select'); const toolsInUseIds = assignments.map(a => a.toolId); const availableTools = tools.filter(t => t.status === 'ativo' && !toolsInUseIds.includes(t.id)); toolSelect.innerHTML = '<option value="">Selecione...</option>'; [...availableTools].sort(sortByName).forEach(tool => { toolSelect.innerHTML += `<option value="${tool.id}">${tool.name}</option>`; }); const assignedTools = tools.filter(t => toolsInUseIds.includes(t.id)); returnToolSelect.innerHTML = '<option value="">Selecione...</option>'; [...assignedTools].sort(sortByName).forEach(tool => { returnToolSelect.innerHTML += `<option value="${tool.id}">${tool.name}</option>`; }); const activeTechs = techs.filter(t => t.status === 'ativo'); techSelect.innerHTML = '<option value="">Selecione...</option>'; [...activeTechs].sort(sortByName).forEach(tech => { techSelect.innerHTML += `<option value="${tech.id}">${tech.name}</option>`; }); showReturnInfo.call(returnToolSelect); }
+function showReturnInfo() { const display = document.getElementById('return-info-display'); const selectedToolId = this.value; if (!selectedToolId) { display.innerHTML = ''; display.style.display = 'none'; return; } const assignment = assignments.find(a => a.toolId == selectedToolId); const tech = techs.find(t => t.id == assignment.techId); const techName = tech ? tech.name : '?'; const contextText = assignment.context || 'N/A'; display.innerHTML = `<strong>Técnico:</strong> ${techName} <br> <strong>Cliente/OS:</strong> ${contextText}`; display.style.display = 'block'; }
+function openModal(modalId) { const modal = document.getElementById(modalId); if(modal) { switch(modalId) { case 'tools-modal': case 'techs-modal': case 'users-modal': updateManagementLists(); break; case 'history-modal': updateHistoryLog(); break; } modal.style.display = 'block'; } }
+function closeModal(modalElement) { modalElement.style.display = 'none'; }
 function updateHistoryLog() { const historyLog = document.getElementById('history-log'); historyLog.innerHTML = ''; if (history.length === 0) { historyLog.innerHTML = '<li>Nenhuma devolução registrada.</li>'; return; } history.forEach(entry => { const li = document.createElement('li'); const contextText = entry.context ? `(Cliente/OS: ${entry.context})` : ''; const checkoutDateStr = entry.checkoutDate?.toDate ? entry.checkoutDate.toDate().toLocaleDateString('pt-BR') : '?'; const returnDateStr = entry.returnDate?.toDate ? entry.returnDate.toDate().toLocaleDateString('pt-BR') : '?'; li.innerHTML = `<strong>${entry.toolName}</strong> com <strong>${entry.techName}</strong> ${contextText}<br><small>Saída: ${checkoutDateStr} | Devolução: ${returnDateStr}</small>`; historyLog.appendChild(li); }); }
 function showAvailableToolsList() { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">✅</span> Ferramentas Disponíveis'; list.innerHTML = ''; const availableTools = tools.filter(tool => tool.status === 'ativo' && !assignments.some(a => a.toolId == tool.id)); if (availableTools.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta disponível.</li>'; } else { [...availableTools].sort(sortByName).forEach(tool => { const li = document.createElement('li'); li.innerHTML = `<span>${tool.name}</span> <span class="status status-available">DISPONÍVEL</span>`; list.appendChild(li); }); } openModal('status-report-modal'); }
 function showInUseToolsList() { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">➡️</span> Ferramentas em Uso'; list.innerHTML = ''; const activeAssignments = assignments.filter(a => tools.some(t => t.id == a.toolId && t.status === 'ativo')); if (activeAssignments.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta em uso.</li>'; } else { [...activeAssignments].sort((a,b) => tools.find(t=>t.id==a.toolId).name.localeCompare(tools.find(t=>t.id==b.toolId).name)).forEach(a => { const tool = tools.find(t => t.id == a.toolId); const tech = techs.find(t => t.id == a.techId); if(tool){const li = document.createElement('li'); const techName = tech ? tech.name : '?'; const contextText = a.context ? `(Cliente/OS: ${a.context})` : ''; li.innerHTML = `<span>${tool.name}</span> com <strong>${techName}</strong> ${contextText}`; list.appendChild(li);} }); } openModal('status-report-modal'); }
+window.editTech = editTech; window.toggleToolStatus = toggleToolStatus; window.toggleTechStatus = toggleTechStatus;
 
-// Ativa os listeners da tela de autenticação assim que o script carrega
-activateAuthEventListeners();
+// --- Inicialização dos Event Listeners ---
+document.getElementById('login-btn').onclick = handleLogin;
+document.getElementById('register-btn').onclick = handleRegister;
+document.getElementById('signout_button').onclick = handleSignoutClick;
+document.getElementById('show-register-link').onclick = (e) => { e.preventDefault(); document.getElementById('login-form').style.display = 'none'; document.getElementById('register-form').style.display = 'block'; };
+document.getElementById('show-login-link').onclick = (e) => { e.preventDefault(); document.getElementById('register-form').style.display = 'none'; document.getElementById('login-form').style.display = 'block'; };
+document.getElementById('open-available-btn').onclick = showAvailableToolsList;
+document.getElementById('open-inuse-btn').onclick = showInUseToolsList;
+document.getElementById('open-history-btn').onclick = function() { openModal('history-modal'); };
+document.getElementById('open-tools-btn').onclick = function() { openModal('tools-modal'); };
+document.getElementById('open-techs-btn').onclick = function() { openModal('techs-modal'); };
+document.getElementById('open-users-btn').onclick = function() { openModal('users-modal'); };
+document.getElementById('assign-tool-btn').onclick = assignTool;
+document.getElementById('return-tool-btn').onclick = returnTool;
+document.getElementById('add-tool-btn').onclick = addTool;
+document.getElementById('add-tech-btn').onclick = addTech;
+document.getElementById('add-user-btn').onclick = addAuthorizedUser;
+document.getElementById('return-tool-select').onchange = showReturnInfo;
+document.querySelectorAll('.close-btn').forEach(btn => btn.onclick = function() { closeModal(btn.closest('.modal')); });
+window.onclick = function(event) { if (event.target.classList.contains('modal')) { closeModal(event.target); } };
+document.getElementById('tool-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTool(); } });
+document.getElementById('tech-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTech(); } });
+document.getElementById('user-email').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addAuthorizedUser(); } });
