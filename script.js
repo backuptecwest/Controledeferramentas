@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
 // #####   COLE AS SUAS CREDENCIAIS AQUI   #####
 const firebaseConfig = { apiKey: "AIzaSyDrQ2IKaMylyDw4AfYtT1QzNltYR8SCXo4", authDomain: "tecwest-controles-7e2eb.firebaseapp.com", projectId: "tecwest-controles-7e2eb" /* ... */ };
@@ -32,7 +32,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-function handleRegister() {
+async function handleRegister() {
     const emailInput = document.getElementById('register-email');
     const passwordInput = document.getElementById('register-password');
     const errorP = document.getElementById('register-error');
@@ -40,7 +40,11 @@ function handleRegister() {
     const password = passwordInput.value;
     errorP.textContent = '';
 
-    if (!authorizedUsers.some(user => user.email === email)) {
+    const authUsersRef = collection(db, "companies", COMPANY_ID, "authorized_users");
+    const q = query(authUsersRef, where("email", "==", email));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
         errorP.textContent = "Este e-mail não está autorizado a registar-se.";
         return;
     }
@@ -76,12 +80,28 @@ async function onLogin() {
     document.getElementById('open-users-btn').style.display = isAdmin ? 'block' : 'none';
     listenToDataChanges();
 }
-
-// ... (Copie e cole aqui o restante do seu script.js da v9.0, pois ele não muda)
-// Para garantir, o bloco completo de funções que faltam está abaixo.
-function listenToDataChanges() { if (!currentUser) return; unsubscribes.push(onSnapshot(query(collection(db, "companies", COMPANY_ID, "tools")), snapshot => { tools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateUI('tools'); })); unsubscribes.push(onSnapshot(query(collection(db, "companies", COMPANY_ID, "techs")), snapshot => { techs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateUI('techs'); })); unsubscribes.push(onSnapshot(collection(db, "companies", COMPANY_ID, "assignments"), snapshot => { assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateUI('assignments'); })); unsubscribes.push(onSnapshot(query(collection(db, "companies", COMPANY_ID, "history"), orderBy("returnDate", "desc")), snapshot => { history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); const historyModal = document.querySelector('#history-modal[style*="display: block"]'); if (historyModal) updateHistoryLog(); })); if(isAdmin) { unsubscribes.push(onSnapshot(query(collection(db, "companies", COMPANY_ID, "authorized_users")), snapshot => { authorizedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); const usersModal = document.querySelector('#users-modal[style*="display: block"]'); if (usersModal) updateUserManagementList(); })); } }
+function listenToDataChanges() { if (!currentUser) return; const dataCollections = ['tools', 'techs', 'assignments', 'history']; dataCollections.forEach(col => { const ref = collection(db, "companies", COMPANY_ID, col); const q = (col === 'history') ? query(ref, orderBy("returnDate", "desc")) : query(ref); const unsub = onSnapshot(q, snapshot => { window[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateUI(col); }); unsubscribes.push(unsub); }); if(isAdmin) { const authUsersRef = collection(db, "companies", COMPANY_ID, "authorized_users"); const unsub = onSnapshot(authUsersRef, snapshot => { authorizedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); const usersModal = document.querySelector('#users-modal[style*="display: block"]'); if (usersModal) updateUserManagementList(); }); unsubscribes.push(unsub); } }
 function updateUI(updatedCollection) { updateOperationSelects(); const openModal = document.querySelector('.modal[style*="display: block"]'); if (openModal) { if((openModal.id === 'tools-modal' || openModal.id === 'techs-modal') && (updatedCollection === 'tools' || updatedCollection === 'techs' || updatedCollection === 'assignments')) { updateManagementLists(); } else if (openModal.id === 'history-modal' && updatedCollection === 'history') { updateHistoryLog(); } else if (openModal.id === 'status-report-modal' && (updatedCollection === 'tools' || updatedCollection === 'assignments')) { const title = document.getElementById('status-report-title').textContent; if (title.includes("Disponíveis")) { showAvailableToolsList(false); } else if (title.includes("em Uso")) { showInUseToolsList(false); } } } }
-function activateMainAppEventListeners() { document.getElementById('signout_button').onclick = handleSignoutClick; document.getElementById('open-available-btn').onclick = showAvailableToolsList; document.getElementById('open-inuse-btn').onclick = showInUseToolsList; document.getElementById('open-history-btn').onclick = function() { openModal('history-modal'); }; document.getElementById('open-tools-btn').onclick = function() { openModal('tools-modal'); }; document.getElementById('open-techs-btn').onclick = function() { openModal('techs-modal'); }; document.getElementById('open-users-btn').onclick = function() { openModal('users-modal'); }; document.getElementById('assign-tool-btn').onclick = assignTool; document.getElementById('return-tool-btn').onclick = returnTool; document.getElementById('add-tool-btn').onclick = addTool; document.getElementById('add-tech-btn').onclick = addTech; document.getElementById('add-user-btn').onclick = addAuthorizedUser; document.getElementById('return-tool-select').onchange = showReturnInfo; document.querySelectorAll('.close-btn').forEach(btn => btn.onclick = function() { closeModal(btn.closest('.modal')); }); window.onclick = function(event) { if (event.target.classList.contains('modal')) { closeModal(event.target); } }; document.getElementById('tool-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTool(); } }); document.getElementById('tech-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTech(); } }); document.getElementById('user-email').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addAuthorizedUser(); } }); }
+function activateMainAppEventListeners() {
+    document.getElementById('signout_button').onclick = handleSignoutClick;
+    document.getElementById('open-available-btn').onclick = showAvailableToolsList;
+    document.getElementById('open-inuse-btn').onclick = showInUseToolsList;
+    document.getElementById('open-history-btn').onclick = function() { openModal('history-modal'); };
+    document.getElementById('open-tools-btn').onclick = function() { openModal('tools-modal'); };
+    document.getElementById('open-techs-btn').onclick = function() { openModal('techs-modal'); };
+    document.getElementById('open-users-btn').onclick = function() { openModal('users-modal'); };
+    document.getElementById('assign-tool-btn').onclick = assignTool;
+    document.getElementById('return-tool-btn').onclick = returnTool;
+    document.getElementById('add-tool-btn').onclick = addTool;
+    document.getElementById('add-tech-btn').onclick = addTech;
+    document.getElementById('add-user-btn').onclick = addAuthorizedUser;
+    document.getElementById('return-tool-select').onchange = showReturnInfo;
+    document.querySelectorAll('.close-btn').forEach(btn => btn.onclick = function() { closeModal(btn.closest('.modal')); });
+    window.onclick = function(event) { if (event.target.classList.contains('modal')) { closeModal(event.target); } };
+    document.getElementById('tool-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTool(); } });
+    document.getElementById('tech-name').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addTech(); } });
+    document.getElementById('user-email').addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); addAuthorizedUser(); } });
+}
 function addAuthorizedUser() { const emailInput = document.getElementById('user-email'); const email = emailInput.value.trim().toLowerCase(); if (email) { addDoc(collection(db, "companies", COMPANY_ID, "authorized_users"), { email: email }); emailInput.value = ''; } }
 function removeAuthorizedUser(userId) { if(confirm("Tem a certeza que quer remover o acesso deste utilizador?")) { deleteDoc(doc(db, "companies", COMPANY_ID, "authorized_users", userId)); } } window.removeAuthorizedUser = removeAuthorizedUser;
 function updateUserManagementList() { const userList = document.getElementById('user-management-list'); userList.innerHTML = ''; authorizedUsers.forEach(user => { const li = document.createElement('li'); li.innerHTML = `<span>${user.email}</span><div class="button-group"><button class="small-button" onclick="window.removeAuthorizedUser('${user.id}')">Remover</button></div>`; userList.appendChild(li); }); }
@@ -104,4 +124,22 @@ function updateHistoryLog() { const historyLog = document.getElementById('histor
 function showAvailableToolsList() { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">✅</span> Ferramentas Disponíveis'; list.innerHTML = ''; const availableTools = tools.filter(tool => tool.status === 'ativo' && !assignments.some(a => a.toolId == tool.id)); if (availableTools.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta disponível.</li>'; } else { [...availableTools].sort(sortByName).forEach(tool => { const li = document.createElement('li'); li.innerHTML = `<span>${tool.name}</span> <span class="status status-available">DISPONÍVEL</span>`; list.appendChild(li); }); } openModal('status-report-modal'); }
 function showInUseToolsList() { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">➡️</span> Ferramentas em Uso'; list.innerHTML = ''; const activeAssignments = assignments.filter(a => tools.some(t => t.id == a.toolId && t.status === 'ativo')); if (activeAssignments.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta em uso.</li>'; } else { [...activeAssignments].sort((a,b) => tools.find(t=>t.id==a.toolId).name.localeCompare(tools.find(t=>t.id==b.toolId).name)).forEach(a => { const tool = tools.find(t => t.id == a.toolId); const tech = techs.find(t => t.id == a.techId); if(tool){const li = document.createElement('li'); const techName = tech ? tech.name : '?'; const contextText = a.context ? `(Cliente/OS: ${a.context})` : ''; li.innerHTML = `<span>${tool.name}</span> com <strong>${techName}</strong> ${contextText}`; list.appendChild(li);} }); } openModal('status-report-modal'); }
 
-window.onload = activateAuthEventListeners;
+// CORREÇÃO (v9.1): Liga os eventos de autenticação apenas quando o DOM estiver pronto
+window.addEventListener('DOMContentLoaded', () => {
+    activateAuthEventListeners();
+});
+
+function activateAuthEventListeners() {
+    document.getElementById('login-btn').onclick = handleLogin;
+    document.getElementById('register-btn').onclick = handleRegister;
+    document.getElementById('show-register-link').onclick = (e) => { 
+        e.preventDefault(); 
+        document.getElementById('login-form').style.display = 'none'; 
+        document.getElementById('register-form').style.display = 'block'; 
+    };
+    document.getElementById('show-login-link').onclick = (e) => { 
+        e.preventDefault(); 
+        document.getElementById('register-form').style.display = 'none'; 
+        document.getElementById('login-form').style.display = 'block'; 
+    };
+}
