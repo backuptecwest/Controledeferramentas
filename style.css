@@ -15,6 +15,7 @@ button { background-color: #007bff; color: white; padding: 12px 20px; border: no
 button:hover { background-color: #0056b3; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
 .button-group, .control-panel { display: flex; flex-direction: column; gap: 10px; }
 .button-group button, .control-panel button { width: 100%; box-sizing: border-box; }
+#login-container .button-group button { width: auto; } /* Ajuste para o botão de login não ocupar 100% */
 .small-button { padding: 6px 12px; font-size: 12px; background-color: #6c757d; width: auto !important; }
 .small-button:hover { background-color: #5a6268; }
 .refresh-button { background-color: #28a745; }

@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Ferramentas v5.1</title>
+    <title>Controle de Ferramentas v6.0</title>
     <link rel="stylesheet" href="style.css">
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Controle de Ferramentas v5.1</h1>
+        <h1>Controle de Ferramentas v6.0</h1>
         <div id="login-container" class="card" style="max-width: 300px; margin: 20px auto; text-align: center;">
             <p id="login-message">A carregar...</p>
-            <div class="button-group"><button id="authorize_button"></button></div>
+            <div class="button-group">
+                <button id="authorize_button">Login com Google</button>
+            </div>
         </div>
         <div id="main-app-content" style="display: none;">
             <div class="main-layout">
@@ -36,7 +36,6 @@
                     <div class="card">
                         <h2><span class="emoji">⚙️</span> Painel de Controle</h2>
                         <div class="control-panel">
-                            <button id="refresh-data-btn" class="refresh-button">Atualizar Dados</button>
                             <button id="open-available-btn">Disponíveis</button>
                             <button id="open-inuse-btn">Em Uso</button>
                             <button id="open-history-btn">Histórico</button>
@@ -56,6 +55,10 @@
     <div id="techs-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">👷</span> Gerenciar Técnicos</h2><div class="form-group"><input type="text" id="tech-name" placeholder="Nome do novo técnico"><button id="add-tech-btn">Adicionar</button></div><ul id="tech-management-list" class="management-list"></ul></div></div>
     <div id="history-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">📖</span> Histórico de Movimentações</h2><ul id="history-log" class="history-list"></ul></div></div>
     <div id="status-report-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2 id="status-report-title"></h2><ul id="status-report-list" class="management-list"></ul></div></div>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
     
     <script src="script.js"></script>
 </body>
