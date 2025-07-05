@@ -3,19 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Ferramentas v7.1</title>
+    <title>Controle de Ferramentas v8.0</title>
     <link rel="stylesheet" href="style.css">
-    <script type="module" src="script.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Controle de Ferramentas v7.1</h1>
-        <div id="login-container" class="card" style="max-width: 300px; margin: 20px auto; text-align: center;">
-            <p id="login-message">A carregar...</p>
-            <div class="button-group">
-                <button id="authorize_button"></button>
+        <h1>Controle de Ferramentas v8.0</h1>
+
+        <div id="auth-container" class="card" style="max-width: 400px; margin: 20px auto;">
+            
+            <div id="login-form">
+                <h2 class="auth-title">Login</h2>
+                <div class="form-group-vertical">
+                    <label for="login-email">E-mail</label>
+                    <input type="email" id="login-email" placeholder="seu@email.com">
+                </div>
+                <div class="form-group-vertical">
+                    <label for="login-password">Senha</label>
+                    <input type="password" id="login-password">
+                </div>
+                <p id="login-error" class="error-message"></p>
+                <div class="button-group">
+                    <button id="login-btn">Entrar</button>
+                </div>
+                <p class="auth-switch">Não tem uma conta? <a href="#" id="show-register-link">Cadastre-se</a></p>
+            </div>
+
+            <div id="register-form" style="display: none;">
+                <h2 class="auth-title">Cadastro de Novo Utilizador</h2>
+                <div class="form-group-vertical">
+                    <label for="register-email">E-mail</label>
+                    <input type="email" id="register-email" placeholder="seu@email.com">
+                </div>
+                <div class="form-group-vertical">
+                    <label for="register-password">Senha (mínimo 6 caracteres)</label>
+                    <input type="password" id="register-password">
+                </div>
+                <p id="register-error" class="error-message"></p>
+                <div class="button-group">
+                    <button id="register-btn">Cadastrar</button>
+                </div>
+                <p class="auth-switch">Já tem uma conta? <a href="#" id="show-login-link">Faça o login</a></p>
             </div>
         </div>
+
         <div id="main-app-content" style="display: none;">
             <div class="main-layout">
                 <div class="main-operations">
@@ -56,5 +87,6 @@
     <div id="techs-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">👷</span> Gerenciar Técnicos</h2><div class="form-group"><input type="text" id="tech-name" placeholder="Nome do novo técnico"><button id="add-tech-btn">Adicionar</button></div><ul id="tech-management-list" class="management-list"></ul></div></div>
     <div id="history-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">📖</span> Histórico de Movimentações</h2><ul id="history-log" class="history-list"></ul></div></div>
     <div id="status-report-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2 id="status-report-title"></h2><ul id="status-report-list" class="management-list"></ul></div></div>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
