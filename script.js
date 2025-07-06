@@ -3,17 +3,29 @@ import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWith
 import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
 // #####   COLOQUE AQUI AS SUAS CREDENCIAIS   #####
-const firebaseConfig = { apiKey: "AIzaSyDrQ2IKaMylyDw4AfYtT1QzNltYR8SCXo4", authDomain: "tecwest-controles-7e2eb.firebaseapp.com", projectId: "tecwest-controles-7e2eb" /* ... */ };
-const COMPANY_ID = ' KsIAlKCy90aNe9rRfMEw';
-// ##################################################
+const firebaseConfig = {
+    apiKey: "AIzaSyDrQ2IKaMylyDw4AfYtT1QzNltYR8SCXo4",
+    authDomain: "tecwest-controles-7e2eb.firebaseapp.com",
+    projectId: "tecwest-controles-7e2eb",
+    storageBucket: "tecwest-controles-7e2eb.firebasestorage.app",
+    messagingSenderId: "997393524005",
+    appId: "1:997393524005:web:d3c472d7249555aaa826cc"
+};
 
+// NOVO E CRÍTICO: Cole o seu UID de administrador aqui. Ele identifica a "empresa".
+const ADMIN_UID = 'v4ggJ6WWx6MEsV64Byo3WIjAseI3';
+// #########################################################
+
+// --- Inicialização do Firebase ---
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// --- Variáveis Globais ---
 let currentUser = null;
 let isAdmin = false;
-let companyId = null; // Será definido após o login
+// A ID da empresa é definida pelo UID do admin. Todos os dados serão guardados sob esta ID.
+const companyId = ADMIN_UID; 
 let tools = [], techs = [], assignments = [], history = [];
 let authorizedUsers = [];
 const unsubscribes = [];
@@ -22,11 +34,11 @@ const unsubscribes = [];
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
+        showAppScreen();
         onLogin();
     } else {
         currentUser = null;
         isAdmin = false;
-        companyId = null;
         showLoginScreen();
         unsubscribes.forEach(unsub => unsub());
         unsubscribes.length = 0;
@@ -34,59 +46,69 @@ onAuthStateChanged(auth, (user) => {
 });
 
 async function handleRegister() {
-    const email = document.getElementById('register-email').value.trim().toLowerCase();
-    const password = document.getElementById('register-password').value;
+    const emailInput = document.getElementById('register-email');
+    const passwordInput = document.getElementById('register-password');
     const errorP = document.getElementById('register-error');
+    const email = emailInput.value.trim().toLowerCase();
+    const password = passwordInput.value;
     errorP.textContent = '';
-    
-    // Verifica se o e-mail está na lista de autorizados
-    const authUsersRef = collection(db, "companies", ADMIN_UID, "authorized_users");
+
+    // Verifica se o e-mail está na lista de autorizados da empresa
+    const authUsersRef = collection(db, "companies", companyId, "authorized_users");
     const q = query(authUsersRef, where("email", "==", email));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty && email !== auth.currentUser?.email) { // O admin pode sempre se registrar
-        const adminDoc = await getDocs(query(collection(db, "admins"), where("__name__", "==", auth.currentUser?.uid)));
-        if(adminDoc.empty){
-             errorP.textContent = "Este e-mail não está autorizado a registar-se.";
-             return;
+    
+    try {
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            errorP.textContent = "Este e-mail não está autorizado a registar-se.";
+            return;
         }
-    }
 
-    createUserWithEmailAndPassword(auth, email, password)
-        .then(userCredential => {
-            // Se o utilizador admin se está a recadastrar, não faz nada. 
-            // Para novos utilizadores, precisaríamos de uma lógica de atribuição de empresa aqui.
-            // Por agora, o sistema assume que todos os autorizados pertencem à empresa do admin.
-            console.log("Utilizador registado:", userCredential.user.email);
-        })
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        console.log("Utilizador registado:", userCredential.user.email);
+        // O onAuthStateChanged tratará de mostrar a app
+
+    } catch (error) {
+        if (error.code === 'auth/email-already-in-use') { errorP.textContent = "Este e-mail já está em uso."; }
+        else if (error.code === 'auth/weak-password') { errorP.textContent = "A senha precisa de no mínimo 6 caracteres."; }
+        else { errorP.textContent = "Ocorreu um erro ao registar."; }
+        console.error("Erro no registo:", error);
+    }
+}
+
+function handleLogin() {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const errorP = document.getElementById('login-error');
+    errorP.textContent = '';
+    signInWithEmailAndPassword(auth, email, password)
         .catch((error) => {
-             if (error.code === 'auth/email-already-in-use') { errorP.textContent = "Este e-mail já está em uso."; }
-             else if (error.code === 'auth/weak-password') { errorP.textContent = "A senha precisa de no mínimo 6 caracteres."; }
-             else { errorP.textContent = "Ocorreu um erro ao registar."; }
+            errorP.textContent = "E-mail ou senha incorretos.";
+            console.error("Erro no login:", error);
         });
 }
 
-// ... (O restante do script será muito parecido, mas com a lógica de dados apontando para a coleção da empresa)
-// Para garantir, o bloco completo está abaixo.
-function handleLogin() { const email = document.getElementById('login-email').value; const password = document.getElementById('login-password').value; const errorP = document.getElementById('login-error'); errorP.textContent = ''; signInWithEmailAndPassword(auth, email, password).catch((error) => { errorP.textContent = "E-mail ou senha incorretos."; }); }
 function handleSignoutClick() { signOut(auth); }
 function showLoginScreen() { document.getElementById('main-app-content').style.display = 'none'; document.getElementById('auth-container').style.display = 'block'; }
 function showAppScreen() { document.getElementById('auth-container').style.display = 'none'; document.getElementById('main-app-content').style.display = 'block'; }
 
+// --- LÓGICA DA APLICAÇÃO ---
 async function onLogin() {
     activateMainAppEventListeners();
     document.getElementById('user-profile').innerText = `Logado como: ${currentUser.email}`;
+    // Verifica se o utilizador logado é o admin
     isAdmin = (currentUser.uid === ADMIN_UID);
-    companyId = ADMIN_UID; // Para esta versão, todos usam a base de dados do admin.
     document.getElementById('open-users-btn').style.display = isAdmin ? 'block' : 'none';
     listenToDataChanges();
 }
 
-function listenToDataChanges() { if (!currentUser || !companyId) return; const collectionsToListen = { tools: query(collection(db, "companies", companyId, "tools"), orderBy("name")), techs: query(collection(db, "companies", companyId, "techs"), orderBy("name")), assignments: collection(db, "companies", companyId, "assignments"), history: query(collection(db, "companies", companyId, "history"), orderBy("returnDate", "desc")) }; for (const [col, ref] of Object.entries(collectionsToListen)) { const unsub = onSnapshot(ref, snapshot => { window[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateUI(col); }); unsubscribes.push(unsub); } if(isAdmin) { const unsub = onSnapshot(collection(db, "companies", companyId, "authorized_users"), snapshot => { authorizedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); const usersModal = document.querySelector('#users-modal[style*="display: block"]'); if (usersModal) updateUserManagementList(); }); unsubscribes.push(unsub); } }
+// ... (Copie e cole aqui o restante do seu script.js da v10.0, pois ele não muda)
+// Para garantir, o bloco completo de funções que faltam está abaixo.
+function listenToDataChanges() { if (!currentUser || !companyId) return; const collectionsToListen = { tools: query(collection(db, "companies", companyId, "tools"), orderBy("name")), techs: query(collection(db, "companies", companyId, "techs"), orderBy("name")), assignments: collection(db, "companies", companyId, "assignments"), history: query(collection(db, "companies", companyId, "history"), orderBy("returnDate", "desc")) }; for (const [col, ref] of Object.entries(collectionsToListen)) { const unsub = onSnapshot(ref, snapshot => { window[col] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateUI(col); }); unsubscribes.push(unsub); } if(isAdmin) { const unsub = onSnapshot(query(collection(db, "companies", companyId, "authorized_users")), snapshot => { authorizedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); const usersModal = document.querySelector('#users-modal[style*="display: block"]'); if (usersModal) updateUserManagementList(); }); unsubscribes.push(unsub); } }
 function updateUI(updatedCollection) { updateOperationSelects(); const openModal = document.querySelector('.modal[style*="display: block"]'); if(openModal) { if((openModal.id === 'tools-modal' || openModal.id === 'techs-modal') && ['tools', 'techs', 'assignments'].includes(updatedCollection)) { updateManagementLists(); } else if (openModal.id === 'history-modal' && updatedCollection === 'history') { updateHistoryLog(); } else if (openModal.id === 'status-report-modal' && ['tools', 'assignments'].includes(updatedCollection)) { const title = document.getElementById('status-report-title').textContent; if (title.includes("Disponíveis")) showAvailableToolsList(false); else if (title.includes("em Uso")) showInUseToolsList(false); } } }
 function activateMainAppEventListeners() { document.getElementById('signout_button').onclick = handleSignoutClick; document.getElementById('open-available-btn').onclick = showAvailableToolsList; document.getElementById('open-inuse-btn').onclick = showInUseToolsList; document.getElementById('open-history-btn').onclick = () => openModal('history-modal'); document.getElementById('open-tools-btn').onclick = () => openModal('tools-modal'); document.getElementById('open-techs-btn').onclick = () => openModal('techs-modal'); document.getElementById('open-users-btn').onclick = () => openModal('users-modal'); document.getElementById('assign-tool-btn').onclick = assignTool; document.getElementById('return-tool-btn').onclick = returnTool; document.getElementById('add-tool-btn').onclick = addTool; document.getElementById('add-tech-btn').onclick = addTech; document.getElementById('add-user-btn').onclick = addAuthorizedUser; document.getElementById('return-tool-select').onchange = showReturnInfo; document.querySelectorAll('.close-btn').forEach(btn => btn.onclick = function() { closeModal(btn.closest('.modal')); }); window.onclick = event => { if (event.target.classList.contains('modal')) closeModal(event.target); }; document.getElementById('tool-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTool(); } }); document.getElementById('tech-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTech(); } }); document.getElementById('user-email').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addAuthorizedUser(); } }); }
 function addAuthorizedUser() { const emailInput = document.getElementById('user-email'); const email = emailInput.value.trim().toLowerCase(); if (email) { addDoc(collection(db, "companies", companyId, "authorized_users"), { email }); emailInput.value = ''; } }
-function removeAuthorizedUser(userId) { if(confirm("Tem a certeza?")) deleteDoc(doc(db, "companies", companyId, "authorized_users", userId)); } window.removeAuthorizedUser = removeAuthorizedUser;
+function removeAuthorizedUser(userId) { if(confirm("Tem a certeza que quer remover o acesso deste utilizador?")) { deleteDoc(doc(db, "companies", companyId, "authorized_users", userId)); } } window.removeAuthorizedUser = removeAuthorizedUser;
 function updateUserManagementList() { const userList = document.getElementById('user-management-list'); userList.innerHTML = ''; authorizedUsers.forEach(user => { const li = document.createElement('li'); li.innerHTML = `<span>${user.email}</span><div class="button-group"><button class="small-button" onclick="window.removeAuthorizedUser('${user.id}')">Remover</button></div>`; userList.appendChild(li); }); }
 function sortByStatusAndName(a, b) { if (a.status === 'ativo' && b.status !== 'ativo') return -1; if (a.status !== 'ativo' && b.status === 'ativo') return 1; return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });}
 function sortByName(a, b) { return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }); }
@@ -108,12 +130,9 @@ function showAvailableToolsList() { const modal = document.getElementById('statu
 function showInUseToolsList() { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">➡️</span> Ferramentas em Uso'; list.innerHTML = ''; const activeAssignments = assignments.filter(a => tools.some(t => t.id == a.toolId && t.status === 'ativo')); if (activeAssignments.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta em uso.</li>'; } else { [...activeAssignments].sort((a,b) => tools.find(t=>t.id==a.toolId).name.localeCompare(tools.find(t=>t.id==b.toolId).name)).forEach(a => { const tool = tools.find(t => t.id == a.toolId); const tech = techs.find(t => t.id == a.techId); if(tool){const li = document.createElement('li'); const techName = tech ? tech.name : '?'; const contextText = a.context ? `(Cliente/OS: ${a.context})` : ''; li.innerHTML = `<span>${tool.name}</span> com <strong>${techName}</strong> ${contextText}`; list.appendChild(li);} }); } openModal('status-report-modal'); }
 
 window.addEventListener('DOMContentLoaded', () => {
-    activateAuthEventListeners();
-});
-
-function activateAuthEventListeners() {
+    // Liga apenas os botões da tela de autenticação
     document.getElementById('login-btn').onclick = handleLogin;
     document.getElementById('register-btn').onclick = handleRegister;
     document.getElementById('show-register-link').onclick = (e) => { e.preventDefault(); document.getElementById('login-form').style.display = 'none'; document.getElementById('register-form').style.display = 'block'; };
     document.getElementById('show-login-link').onclick = (e) => { e.preventDefault(); document.getElementById('register-form').style.display = 'none'; document.getElementById('login-form').style.display = 'block'; };
-}
+});
