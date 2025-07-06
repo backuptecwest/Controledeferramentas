@@ -1,4 +1,3 @@
-// Importa as funções necessárias do Firebase v9+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
@@ -33,9 +32,11 @@ try {
 
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            currentUser = user;
+            if (!currentUser) {
+                currentUser = user;
+                onLogin();
+            }
             showAppScreen();
-            onLogin();
         } else {
             currentUser = null;
             isAdmin = false;
@@ -51,10 +52,7 @@ try {
         const errorP = document.getElementById('register-error');
         errorP.textContent = '\u00A0';
 
-        if (!companyId) {
-            errorP.textContent = "Erro de configuração: ID da empresa não definido.";
-            return;
-        }
+        if (!companyId) { errorP.textContent = "Erro de configuração: ID da empresa não definido."; return; }
         const authUsersRef = collection(db, "companies", companyId, "authorized_users");
         const q = query(authUsersRef, where("email", "==", email));
         
@@ -117,26 +115,7 @@ try {
         }
     }
     
-    function activateMainAppEventListeners() {
-        document.getElementById('signout_button').onclick = handleSignoutClick;
-        document.getElementById('open-available-btn').onclick = showAvailableToolsList;
-        document.getElementById('open-inuse-btn').onclick = showInUseToolsList;
-        document.getElementById('open-history-btn').onclick = () => openModal('history-modal');
-        document.getElementById('open-tools-btn').onclick = () => openModal('tools-modal');
-        document.getElementById('open-techs-btn').onclick = () => openModal('techs-modal');
-        document.getElementById('open-users-btn').onclick = () => openModal('users-modal');
-        document.getElementById('assign-tool-btn').onclick = assignTool;
-        document.getElementById('return-tool-btn').onclick = returnTool;
-        document.getElementById('add-tool-btn').onclick = addTool;
-        document.getElementById('add-tech-btn').onclick = addTech;
-        document.getElementById('add-user-btn').onclick = addAuthorizedUser;
-        document.getElementById('return-tool-select').onchange = showReturnInfo;
-        document.querySelectorAll('.close-btn').forEach(btn => btn.onclick = function() { closeModal(btn.closest('.modal')); });
-        window.onclick = event => { if (event.target.classList.contains('modal')) closeModal(event.target); };
-        document.getElementById('tool-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTool(); } });
-        document.getElementById('tech-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTech(); } });
-        document.getElementById('user-email').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addAuthorizedUser(); } });
-    }
+    function activateMainAppEventListeners() { document.getElementById('signout_button').onclick = handleSignoutClick; document.getElementById('open-available-btn').onclick = showAvailableToolsList; document.getElementById('open-inuse-btn').onclick = showInUseToolsList; document.getElementById('open-history-btn').onclick = () => openModal('history-modal'); document.getElementById('open-tools-btn').onclick = () => openModal('tools-modal'); document.getElementById('open-techs-btn').onclick = () => openModal('techs-modal'); document.getElementById('open-users-btn').onclick = () => openModal('users-modal'); document.getElementById('assign-tool-btn').onclick = assignTool; document.getElementById('return-tool-btn').onclick = returnTool; document.getElementById('add-tool-btn').onclick = addTool; document.getElementById('add-tech-btn').onclick = addTech; document.getElementById('add-user-btn').onclick = addAuthorizedUser; document.getElementById('return-tool-select').onchange = showReturnInfo; document.querySelectorAll('.close-btn').forEach(btn => btn.onclick = function() { closeModal(btn.closest('.modal')); }); window.onclick = event => { if (event.target.classList.contains('modal')) closeModal(event.target); }; document.getElementById('tool-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTool(); } }); document.getElementById('tech-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTech(); } }); document.getElementById('user-email').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addAuthorizedUser(); } }); }
     function addAuthorizedUser() { const emailInput = document.getElementById('user-email'); const email = emailInput.value.trim().toLowerCase(); if (email) { addDoc(collection(db, "companies", companyId, "authorized_users"), { email }); emailInput.value = ''; } }
     function removeAuthorizedUser(userId) { if(confirm("Tem a certeza que quer remover o acesso deste utilizador?")) { deleteDoc(doc(db, "companies", companyId, "authorized_users", userId)); } } window.removeAuthorizedUser = removeAuthorizedUser;
     function updateUserManagementList() { const userList = document.getElementById('user-management-list'); userList.innerHTML = ''; authorizedUsers.sort((a,b) => a.email.localeCompare(b.email)).forEach(user => { const li = document.createElement('li'); li.innerHTML = `<span>${user.email}</span><div class="button-group"><button class="small-button" onclick="window.removeAuthorizedUser('${user.id}')">Remover</button></div>`; userList.appendChild(li); }); }
@@ -159,17 +138,15 @@ try {
     function showAvailableToolsList() { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">✅</span> Ferramentas Disponíveis'; list.innerHTML = ''; const availableTools = tools.filter(tool => tool.status === 'ativo' && !assignments.some(a => a.toolId == tool.id)); if (availableTools.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta disponível.</li>'; } else { [...availableTools].sort(sortByName).forEach(tool => { const li = document.createElement('li'); li.innerHTML = `<span>${tool.name}</span> <span class="status status-available">DISPONÍVEL</span>`; list.appendChild(li); }); } openModal('status-report-modal'); }
     function showInUseToolsList() { const modal = document.getElementById('status-report-modal'); const title = document.getElementById('status-report-title'); const list = document.getElementById('status-report-list'); title.innerHTML = '<span class="emoji">➡️</span> Ferramentas em Uso'; list.innerHTML = ''; const activeAssignments = assignments.filter(a => tools.some(t => t.id == a.toolId && t.status === 'ativo')); if (activeAssignments.length === 0) { list.innerHTML = '<li>Nenhuma ferramenta em uso.</li>'; } else { [...activeAssignments].sort((a,b) => tools.find(t=>t.id==a.toolId).name.localeCompare(tools.find(t=>t.id==b.toolId).name)).forEach(a => { const tool = tools.find(t => t.id == a.toolId); const tech = techs.find(t => t.id == a.techId); if(tool){const li = document.createElement('li'); const techName = tech ? tech.name : '?'; const contextText = a.context ? `(Cliente/OS: ${a.context})` : ''; li.innerHTML = `<span>${tool.name}</span> com <strong>${techName}</strong> ${contextText}`; list.appendChild(li);} }); } openModal('status-report-modal'); }
 
+    // --- Inicialização dos Event Listeners ---
+    // Ativa os listeners da tela de autenticação assim que o DOM estiver pronto
     window.addEventListener('DOMContentLoaded', () => {
-        activateAuthEventListeners();
-    });
-    
-    function activateAuthEventListeners() {
         document.getElementById('login-btn').onclick = handleLogin;
         document.getElementById('register-btn').onclick = handleRegister;
         document.getElementById('show-register-link').onclick = (e) => { e.preventDefault(); document.getElementById('login-form').style.display = 'none'; document.getElementById('register-form').style.display = 'block'; document.getElementById('login-error').textContent = '\u00A0'; };
         document.getElementById('show-login-link').onclick = (e) => { e.preventDefault(); document.getElementById('register-form').style.display = 'none'; document.getElementById('login-form').style.display = 'block'; document.getElementById('register-error').textContent = '\u00A0'; };
-    }
+    });
 } catch (e) {
     console.error("Erro fatal na inicialização:", e);
-    document.body.innerHTML = `<h1>Erro Crítico na Aplicação</h1><p>Não foi possível inicializar o Firebase. Verifique se o objeto 'firebaseConfig' e 'ADMIN_UID' estão corretos no ficheiro script.js.</p>`;
+    document.body.innerHTML = `<h1>Erro Crítico na Aplicação</h1><p>Não foi possível inicializar o Firebase. Verifique se o objeto 'firebaseConfig' e 'ADMIN_UID' estão corretos no ficheiro script.js.</p><p>Erro: ${e.message}</p>`;
 }
