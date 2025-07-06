@@ -13,16 +13,16 @@
         <div id="auth-container" class="card" style="max-width: 400px; margin: 20px auto;">
             <div id="login-form">
                 <h2 class="auth-title">Login</h2>
-                <div class="form-group-vertical"><label for="login-email">E-mail</label><input type="email" id="login-email"></div>
-                <div class="form-group-vertical"><label for="login-password">Senha</label><input type="password" id="login-password"></div>
+                <div class="form-group-vertical"><label for="login-email">E-mail</label><input type="email" id="login-email" autocomplete="email"></div>
+                <div class="form-group-vertical"><label for="login-password">Senha</label><input type="password" id="login-password" autocomplete="current-password"></div>
                 <p id="login-error" class="error-message">&nbsp;</p>
                 <div class="button-group"><button id="login-btn">Entrar</button></div>
                 <p class="auth-switch">Não tem uma conta? <a href="#" id="show-register-link">Cadastre-se</a></p>
             </div>
             <div id="register-form" style="display: none;">
                 <h2 class="auth-title">Cadastro de Novo Utilizador</h2>
-                <div class="form-group-vertical"><label for="register-email">E-mail</label><input type="email" id="register-email"></div>
-                <div class="form-group-vertical"><label for="register-password">Senha (mín. 6 caracteres)</label><input type="password" id="register-password"></div>
+                <div class="form-group-vertical"><label for="register-email">E-mail</label><input type="email" id="register-email" autocomplete="email"></div>
+                <div class="form-group-vertical"><label for="register-password">Senha (mín. 6 caracteres)</label><input type="password" id="register-password" autocomplete="new-password"></div>
                 <p id="register-error" class="error-message">&nbsp;</p>
                 <div class="button-group"><button id="register-btn">Cadastrar</button></div>
                 <p class="auth-switch">Já tem uma conta? <a href="#" id="show-login-link">Faça o login</a></p>
