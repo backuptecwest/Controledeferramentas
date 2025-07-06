@@ -4,7 +4,7 @@ import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc
 
 // #####   COLOQUE AQUI AS SUAS CREDENCIAIS   #####
 const firebaseConfig = { apiKey: "AIzaSyDrQ2IKaMylyDw4AfYtT1QzNltYR8SCXo4", authDomain: "tecwest-controles-7e2eb.firebaseapp.com", projectId: "tecwest-controles-7e2eb" /* ... */ };
-const ADMIN_UID = '3r1zwGA0sgOr8QhQFtj5BGyB4CF3';
+const COMPANY_ID = ' KsIAlKCy90aNe9rRfMEw';
 // ##################################################
 
 const app = initializeApp(firebaseConfig);
