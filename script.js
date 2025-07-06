@@ -15,9 +15,8 @@ const firebaseConfig = {
 };
 
 // #####   COLE O SEU UID DE ADMINISTRADOR AQUI   #####
-const COMPANY_ID = ' KsIAlKCy90aNe9rRfMEw';
+const ADMIN_UID = 'v4ggJ6WWx6MEsV64Byo3WIjAseI3';
 // #########################################################
-
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
