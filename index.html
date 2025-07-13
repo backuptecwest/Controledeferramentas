@@ -3,32 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Ferramentas v15.0</title>
+    <title>Controle de Ferramentas v20.0</title>
     <link rel="stylesheet" href="style.css">
     <script type="module" src="script.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Controle de Ferramentas v15.0</h1>
-        <div id="auth-container" class="card" style="max-width: 400px; margin: 20px auto;">
-            <div id="login-form">
-                <h2 class="auth-title">Login</h2>
-                <div class="form-group-vertical"><label for="login-email">E-mail</label><input type="email" id="login-email" autocomplete="email"></div>
-                <div class="form-group-vertical"><label for="login-password">Senha</label><input type="password" id="login-password" autocomplete="current-password"></div>
-                <p id="login-error" class="error-message">&nbsp;</p>
-                <div class="button-group"><button id="login-btn">Entrar</button></div>
-                <p class="auth-switch">Não tem uma conta? <a href="#" id="show-register-link">Cadastre-se</a></p>
-            </div>
-            <div id="register-form" style="display: none;">
-                <h2 class="auth-title">Cadastro de Novo Utilizador</h2>
-                <div class="form-group-vertical"><label for="register-email">E-mail</label><input type="email" id="register-email" autocomplete="email"></div>
-                <div class="form-group-vertical"><label for="register-password">Senha (mín. 6 caracteres)</label><input type="password" id="register-password" autocomplete="new-password"></div>
-                <p id="register-error" class="error-message">&nbsp;</p>
-                <div class="button-group"><button id="register-btn">Cadastrar</button></div>
-                <p class="auth-switch">Já tem uma conta? <a href="#" id="show-login-link">Faça o login</a></p>
-            </div>
+        <div id="auth-container" class="card" style="max-width: 400px; margin: 20px auto; text-align: center;">
+            <h1 style="font-size: 24px; border: none;">Controle de Ferramentas</h1>
+            <p id="auth-status">A carregar...</p>
+            <button id="authorize_button" style="display: none;">Login com Google</button>
         </div>
+
         <div id="main-app-content" style="display: none;">
+            <h1>Controle de Ferramentas v20.0</h1>
             <div class="main-layout">
                 <div class="main-operations">
                     <div class="card">
@@ -49,12 +37,25 @@
                     <div class="card">
                         <h2><span class="emoji">⚙️</span> Painel de Controle</h2>
                         <div class="control-panel">
+                            <button id="refresh-data-btn" class="refresh-button">Atualizar Dados</button>
                             <button id="open-available-btn">Disponíveis</button>
                             <button id="open-inuse-btn">Em Uso</button>
                             <button id="open-history-btn">Histórico</button>
                             <button id="open-tools-btn">Gerir Ferramentas</button>
                             <button id="open-techs-btn">Gerir Técnicos</button>
-                            <button id="open-users-btn" style="display: none; background-color: #ffc107; color: black;">Gerir Utilizadores</button>
                         </div>
                     </div>
                     <div id="logout-container" class="card">
+                        <p id="user-profile"></p>
+                        <div class="button-group"><button id="signout_button">Logout</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="tools-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">🔧</span> Gerenciar Ferramentas</h2><div class="form-group"><input type="text" id="tool-name" placeholder="Nome da nova ferramenta"><button id="add-tool-btn">Adicionar</button></div><ul id="tool-management-list" class="management-list"></ul></div></div>
+    <div id="techs-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">👷</span> Gerenciar Técnicos</h2><div class="form-group"><input type="text" id="tech-name" placeholder="Nome do novo técnico"><button id="add-tech-btn">Adicionar</button></div><ul id="tech-management-list" class="management-list"></ul></div></div>
+    <div id="history-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">📖</span> Histórico de Movimentações</h2><ul id="history-log" class="history-list"></ul></div></div>
+    <div id="status-report-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2 id="status-report-title"></h2><ul id="status-report-list" class="management-list"></ul></div></div>
+</body>
+</html>
