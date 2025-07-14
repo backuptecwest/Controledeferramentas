@@ -1,7 +1,5 @@
-// Importa as credenciais do ficheiro de configuração externo
 import { API_KEY, CLIENT_ID } from './config.js';
 
-// --- Variáveis Globais ---
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file';
 const APP_DATA_FILE_NAME = 'controle_ferramentas_data.json';
@@ -16,8 +14,6 @@ const appState = {
     assignments: [], 
     history: []
 };
-
-// --- Funções Principais de Inicialização e Autenticação ---
 
 function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -85,8 +81,6 @@ function handleSignoutClick() {
         });
     }
 }
-
-// --- Lógica da Aplicação ---
 
 async function onLoginSuccess() {
     showAppScreen();
@@ -266,9 +260,41 @@ function invertSelectionReturnTools() {
     checkboxes.forEach(cb => { cb.checked = !cb.checked; });
 }
 
+function printReport() {
+    const reportTitleHTML = document.getElementById('status-report-title').innerHTML;
+    const reportListHTML = document.getElementById('status-report-list').innerHTML;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Imprimir Relatório</title>
+                <style>
+                    @page { size: landscape; margin: 15mm; }
+                    body { font-family: sans-serif; }
+                    h2 { text-align: center; border-bottom: 2px solid black; padding-bottom: 10px; }
+                    ul { list-style-type: none; padding: 0; margin: 0; }
+                    li { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #ccc; }
+                    li > div { flex-grow: 1; }
+                    li > small { white-space: nowrap; margin-left: 20px; }
+                    strong { font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h2>${reportTitleHTML}</h2>
+                <ul>${reportListHTML}</ul>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 250);
+}
 // --- FIM DA PARTE 1 ---
 // --- INÍCIO DA PARTE 2 ---
-
 window.editTool = async (id) => {
     const tool = appState.tools.find(t => t.id === id);
     const newName = prompt('Novo nome:', tool.name);
@@ -313,8 +339,6 @@ window.toggleTechStatus = async (id) => {
     updateManagementLists();
     updateOperationSelects();
 };
-
-// --- Funções de UI ---
 
 function showLoginScreen() {
     document.getElementById('main-app-content').style.display = 'none';
@@ -491,12 +515,12 @@ function updateHistoryLog() {
 function showAvailableToolsList() {
     const availableTools = getAvailableTools();
     document.getElementById('status-report-title').innerHTML = '<span class="emoji">✅</span> Ferramentas Disponíveis';
-    renderList('status-report-list', availableTools, (tool) => {
+    openModal('status-report-modal');
+    renderList('status-report-list', availableTools.sort(sortByName), (tool) => {
         const li = document.createElement('li');
         li.innerHTML = `<span>${tool.name}</span>`;
         return li;
     }, 'Nenhuma ferramenta disponível.');
-    openModal('status-report-modal');
 }
 
 function showInUseToolsList() {
@@ -519,12 +543,12 @@ function showInUseToolsList() {
     inUseToolsDetails.sort((a,b) => a.toolName.localeCompare(b.toolName, 'pt-BR'));
     
     document.getElementById('status-report-title').innerHTML = '<span class="emoji">➡️</span> Ferramentas em Uso';
+    openModal('status-report-modal');
     renderList('status-report-list', inUseToolsDetails, (item) => {
         const li = document.createElement('li');
         li.innerHTML = `<div><span>${item.toolName}</span> com <strong>${item.techName}</strong> ${item.context ? `(OS: ${item.context})` : ''}</div><small>Saída em: ${item.checkoutDate}</small>`;
         return li;
-    }, 'Nenhuma ferramenta em uso.');
-    openModal('status-report-modal');
+    });
 }
 
 function openModal(modalId) {
@@ -571,6 +595,7 @@ function activateMainAppEventListeners() {
 
     document.getElementById('return-tech-select').onchange = updateReturnCheckboxList;
     document.getElementById('invert-selection-btn').onclick = invertSelectionReturnTools;
+    document.getElementById('print-report-btn').onclick = printReport;
     
     document.querySelectorAll('.close-btn').forEach(btn => {
         btn.onclick = function() { closeModal(btn.closest('.modal')); };
@@ -594,7 +619,6 @@ function activateMainAppEventListeners() {
     areAppEventListenersActive = true;
 }
 
-// --- Ponto de Entrada da Aplicação ---
 startApp();
 
 document.addEventListener('DOMContentLoaded', () => {
