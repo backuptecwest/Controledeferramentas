@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Ferramentas v20.0</title>
+    <title>Controle de Ferramentas v21.5</title>
     <link rel="stylesheet" href="style.css">
     <script type="module" src="script.js"></script>
 </head>
@@ -16,21 +16,33 @@
         </div>
 
         <div id="main-app-content" style="display: none;">
-            <h1>Controle de Ferramentas v20.0</h1>
+            <h1>Controle de Ferramentas v21.5</h1>
             <div class="main-layout">
                 <div class="main-operations">
                     <div class="card">
                         <h2><span class="emoji">➡️</span> Registrar Saída</h2>
-                        <div class="form-group"><label for="tool-select">Ferramenta:</label><select id="tool-select"></select></div>
-                        <div class="form-group"><label for="tech-select">Técnico:</label><select id="tech-select"></select></div>
-                        <div class="form-group"><label for="assignment-context">Cliente / Nº OS:</label><input type="text" id="assignment-context"></div>
-                        <div class="button-group"><button id="assign-tool-btn">Registrar Saída</button></div>
+                        <div class="form-group"><label for="tech-select">1. Selecione o Técnico:</label><select id="tech-select"></select></div>
+                        <div class="form-group"><label for="assignment-context">2. Cliente / Nº OS:</label><input type="text" id="assignment-context" placeholder="Opcional"></div>
+                        <div class="button-group">
+                            <button id="open-checkout-modal-btn">3. Avançar para Selecionar Ferramentas</button>
+                        </div>
                     </div>
                     <div class="card">
                         <h2><span class="emoji">⬅️</span> Registrar Devolução</h2>
-                        <div class="form-group"><label for="return-tool-select">Ferramenta em uso:</label><select id="return-tool-select"></select></div>
-                        <div id="return-info-display" class="info-display"></div>
-                        <div class="button-group"><button id="return-tool-btn">Registrar Devolução</button></div>
+                        <div class="form-group">
+                            <label for="return-tech-select">1. Selecione o Técnico:</label>
+                            <select id="return-tech-select"></select>
+                        </div>
+                        <div class="form-group-vertical">
+                            <label>2. Marque as Ferramentas a Devolver:</label>
+                            <div id="return-tool-list" class="checkbox-list">
+                                <span>Selecione um técnico para ver as ferramentas.</span>
+                            </div>
+                            <div id="return-selection-controls" class="selection-controls">
+                                <button id="invert-selection-btn" class="link-button">Inverter Seleção</button>
+                            </div>
+                        </div>
+                        <div class="button-group"><button id="confirm-return-btn" disabled>3. Registrar Devolução</button></div>
                     </div>
                 </div>
                 <div class="sidebar-controls">
@@ -38,11 +50,11 @@
                         <h2><span class="emoji">⚙️</span> Painel de Controle</h2>
                         <div class="control-panel">
                             <button id="refresh-data-btn" class="refresh-button">Atualizar Dados</button>
-                            <button id="open-available-btn">Disponíveis</button>
-                            <button id="open-inuse-btn">Em Uso</button>
-                            <button id="open-history-btn">Histórico</button>
-                            <button id="open-tools-btn">Gerir Ferramentas</button>
-                            <button id="open-techs-btn">Gerir Técnicos</button>
+                            <button id="open-available-btn">Ferramentas Disponíveis</button>
+                            <button id="open-inuse-btn">Ferramentas em Uso</button>
+                            <button id="open-history-btn">Histórico de Movimentações</button>
+                            <button id="open-tools-btn">Cadastro de ferramentas</button>
+                            <button id="open-techs-btn">Cadastro de Técnicos</button>
                         </div>
                     </div>
                     <div id="logout-container" class="card">
@@ -53,9 +65,25 @@
             </div>
         </div>
     </div>
+    
     <div id="tools-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">🔧</span> Gerenciar Ferramentas</h2><div class="form-group"><input type="text" id="tool-name" placeholder="Nome da nova ferramenta"><button id="add-tool-btn">Adicionar</button></div><ul id="tool-management-list" class="management-list"></ul></div></div>
     <div id="techs-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">👷</span> Gerenciar Técnicos</h2><div class="form-group"><input type="text" id="tech-name" placeholder="Nome do novo técnico"><button id="add-tech-btn">Adicionar</button></div><ul id="tech-management-list" class="management-list"></ul></div></div>
     <div id="history-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2><span class="emoji">📖</span> Histórico de Movimentações</h2><ul id="history-log" class="history-list"></ul></div></div>
     <div id="status-report-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2 id="status-report-title"></h2><ul id="status-report-list" class="management-list"></ul></div></div>
+    
+    <div id="checkout-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2><span class="emoji">➡️</span> Selecionar Ferramentas para Saída</h2>
+            <div class="form-group-vertical">
+                <label>Marque as ferramentas para este grupo de saída:</label>
+                <div id="checkout-tool-list" class="checkbox-list"></div>
+            </div>
+            <div class="button-group">
+                <button id="confirm-checkout-btn">Confirmar Saída de Itens</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
